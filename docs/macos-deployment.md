@@ -9,25 +9,28 @@ is unrelated. Card artwork stays on the existing S3/CloudFront distribution.
 Use a private service root outside development checkouts, for example
 `~/Library/Application Support/PokePackBarServer`:
 
-- `releases/<server-sha>-<app-sha>/`: server source, locked virtual environment,
-  rules executable, matching resource bundle and price collectors.
-- `server.env`: mode 0600; absolute SQLite/rules/backup paths and deployment settings.
+- `releases/<server-sha>/`: server source, locked virtual environment, immutable
+  `data/` catalogue, price snapshots and Python price collectors.
+- `server.env`: mode 0600; absolute SQLite/data/backup paths and deployment settings.
 - `ppb.sqlite3`: authoritative account, inventory, transaction and replay state.
 - `backups/`: verified SQLite snapshots, mode 0700.
 - `logs/`: server rotating logs and launchd diagnostics.
 - `migration/`: private incoming local save copies and migration receipts.
 
-Never use `/Applications/PokePackBar.app` as the server's rules executable.
-The user updating their menu-bar application must not change server rules.
+The production Python backend never invokes `/Applications/PokePackBar.app` or
+any Swift rules executable. Preserve older releases only for explicit rollback.
+Updating the user's menu-bar app must not change the server's immutable catalogue.
 
 ## Prepare before activating
 
-1. Export the approved app commit's rules with `scripts/export-rules.sh` into a
-   new destination. Preserve existing engine snapshots.
+1. Use reviewed `data/` from the approved server commit. For a rules-data update,
+   use `scripts/export-native-data.py` and run `scripts/verify-native-rules.py`
+   against the matching Swift build before publishing. This is build-time only.
 2. Place the approved server source in a new release directory. Run
    `uv sync --locked` there before registering any service.
-3. Set `PPB_DATABASE_URL`, `PPB_RULES_EXECUTABLE`, `PPB_BACKUP_DIRECTORY`,
-   `PPB_RULES_TIMEOUT=60`, `PPB_BACKUP_KEEP=14`, `PPB_PORT=8000`,
+3. Set `PPB_DATABASE_URL`, `PPB_RULES_BACKEND=python`,
+   `PPB_RULES_DATA_DIRECTORY=<release>/data`, `PPB_BACKUP_DIRECTORY`,
+   `PPB_BACKUP_KEEP=14`, `PPB_PORT=8000`,
    `PPB_REGISTRATION_MODE=link-code-only`, `PPB_TRUST_CLOUDFLARE_PROXY=1`, and
    `PPB_PRIVATE_DIAGNOSTICS=1` in the private `server.env`.
 4. On upgrades, stop the API and make a consistent SQLite backup before running
@@ -35,6 +38,9 @@ The user updating their menu-bar application must not change server rules.
 5. Check `/health` and `/ready` locally, then generate launch agents using
    `scripts/macos-launchagents.py`. Install the resulting two plists under the
    current user's `~/Library/LaunchAgents` and bootstrap them with launchctl.
+   Both request-serving processes use `ProcessType=Interactive`: background
+   scheduling reproduced a roughly fivefold rules slowdown on this Mac.
+   Warm rules/catalogue and the active price version before readiness.
 6. Configure the tunnel to return 404 for `/ready`, `/docs`, `/redoc`, and
    `/openapi.json`, forward the API hostname, and return 404 for other hosts.
    Keep API responses out of edge caching. Trust the Cloudflare client-IP header
@@ -48,6 +54,13 @@ logs (10 MiB, five backups). launchd restarts failed services. The wrapper holds
 an AC sleep assertion while the service runs. Closing the lid, loss of power or
 network, logging out, and an un-unlocked FileVault reboot can still stop service.
 After reboot, this user must unlock/login before LaunchAgents start.
+
+The Python cutover retains schema `20260930_0006`, all existing sessions and
+`ppb-server-v2/d77433ccd09256e18d32a057b9f4fc28a0c0ba257e22ece02d181f924e5a5866`.
+Do not rewrite account state merely to switch rule implementations. Validate
+copied states first and take a verified backup immediately before activation.
+Code rollback uses the preserved release/env/plist and the current database;
+do not restore an old database after new writes unless data loss is approved.
 
 ## Legacy data cutover
 

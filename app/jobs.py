@@ -94,8 +94,15 @@ def refresh_prices():
     try:
         with SessionLocal() as db:
             _, previous = prices.current(db, rules)
-        binary = Path(rules.executable).resolve()
-        collector = binary.parent / "price-tools/update_printing_prices.py"
+        native = getattr(rules, "backend", "swift") == "python"
+        resource_root = rules.resources_dir if native else prices.resources(rules.executable)
+        tools_root = resource_root if native else Path(rules.executable).resolve().parent
+        collector = tools_root / "price-tools/update_printing_prices.py"
+        catalogue_arguments = (
+            ["--printing-map", str(resource_root / "printing-map.json")]
+            if native
+            else ["--binary", str(Path(rules.executable).resolve())]
+        )
         with tempfile.TemporaryDirectory(prefix="ppb-price-refresh-") as temporary:
             root = Path(temporary)
             cards, packs, pair = root / "cards.json", root / "packs.json", root / "snapshot.json"
@@ -105,10 +112,9 @@ def refresh_prices():
                 [
                     sys.executable,
                     str(collector),
-                    "--binary",
-                    str(binary),
+                    *catalogue_arguments,
                     "--resources",
-                    str(prices.resources(str(binary))),
+                    str(resource_root),
                     "--output",
                     str(cards),
                     "--packs-output",
@@ -208,7 +214,16 @@ async def backup_loop():
 async def lifespan(app):
     import os
 
-    enabled = os.getenv("PPB_JOBS_ENABLED", "1") == "1" and bool(rules.executable)
+    enabled = os.getenv("PPB_JOBS_ENABLED", "1") == "1" and rules.configured
+    if enabled and getattr(rules, "backend", None) == "python":
+        # Pay validation/compilation once before readiness, not on the first buy.
+        # This opens only a read transaction; account state is never loaded.
+        def warm_rules():
+            with SessionLocal() as db:
+                _, payload = prices.current(db, rules)
+            rules.warm(payload)
+
+        await asyncio.to_thread(warm_rules)
     tasks = (
         [
             asyncio.create_task(loop()),

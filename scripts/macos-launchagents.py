@@ -46,7 +46,9 @@ def main():
             "KeepAlive": True,
             "ThrottleInterval": 15,
             "ExitTimeOut": 75,
-            "ProcessType": "Background",
+            # Both processes are on the interactive request path. Background
+            # throttling can otherwise add substantial latency on a busy Mac.
+            "ProcessType": "Interactive",
             "Umask": 0o077,
             "StandardOutPath": str(logs / f"{label}.out.log"),
             "StandardErrorPath": str(logs / f"{label}.err.log"),

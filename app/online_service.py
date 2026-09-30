@@ -4,7 +4,7 @@ from copy import deepcopy
 from uuid import NAMESPACE_URL, uuid5
 
 from fastapi import HTTPException
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app import inventory, social
@@ -69,8 +69,6 @@ def execute(db, who, command, rules):
             raise HTTPException(409, "revision_conflict")
         prepare(db, actor, rules)
         before = actor.balance
-        # Retain pre-transaction balances for both participants' journals.
-        balances = dict(db.execute(select(Account.id, Account.balance)).all())
         if command.action.startswith("trade_"):
             from app.commerce import trade
 
@@ -83,6 +81,9 @@ def execute(db, who, command, rules):
             result, affected = social.mutate(db, actor, command, rules)
         for account_id in sorted(affected):
             account = db.get(Account, account_id)
+            # Commerce changes state, not the balance projection; journal is its
+            # sole updater. Read only touched participants, never every account.
+            previous_balance = before if account_id == actor.id else account.balance
             prepare(db, account, rules)
             journal(
                 db,
@@ -90,7 +91,7 @@ def execute(db, who, command, rules):
                 who,
                 command,
                 result,
-                before if account_id == actor.id else balances[account_id],
+                previous_balance,
                 fingerprint,
             )
         db.add(

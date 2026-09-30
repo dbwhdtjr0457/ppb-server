@@ -3,7 +3,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 umask 077
 if [[ ! -f .env ]]; then
-  echo 'Create .env from .env.example and set PPB_RULES_EXECUTABLE first.' >&2
+  echo 'Create .env from .env.example and set PPB_RULES_DATA_DIRECTORY first.' >&2
   exit 1
 fi
 uv sync --locked

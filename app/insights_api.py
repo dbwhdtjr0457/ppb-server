@@ -14,7 +14,7 @@ router = APIRouter(prefix="/v1", tags=["insights"])
 
 @router.get("/prices")
 def price_status(db: Database, who: Identity, rules=Depends(get_rules)):
-    version, _ = prices.current(db, rules)
+    version = prices.current_version(db, rules)
     job = db.get(ServerJob, "prices")
     return {
         "version": version,
@@ -26,11 +26,11 @@ def price_status(db: Database, who: Identity, rules=Depends(get_rules)):
 
 @router.get("/prices/snapshot")
 def price_snapshot(db: Database, who: Identity, rules=Depends(get_rules)):
-    version, payload = prices.current(db, rules)
-    if not payload:
+    version, data = prices.current_encoded(db, rules)
+    if data is None:
         raise HTTPException(503, "prices_unavailable")
     return Response(
-        prices.encode(payload)[1],
+        data,
         media_type="application/json",
         headers={"ETag": version, "Cache-Control": "private, no-cache"},
     )
@@ -71,11 +71,13 @@ def stats(
     try:
         statistics.rebuild(db, who.account_id)
         result = statistics.summary(db, who.account_id, days, set_id, mode)
-        _, payload = prices.current(db, rules)
         snapshot = read_state(db, who.account_id)
+        db.commit()
+        _, payload = prices.current(db, rules)
+        db.rollback()
+        # Valuation is pure and can be slow; do not hold SQLite's writer lock.
         _, valuation, _ = prices.apply(rules, snapshot["state"], {"kind": "valuation"}, payload)
         result["collection_usd"] = valuation.get("value_usd")
-        db.commit()
         return result
     except BaseException:
         db.rollback()

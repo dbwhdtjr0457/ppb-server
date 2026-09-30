@@ -130,14 +130,21 @@ def test_jobs_are_private_and_rule_failure_rolls_back(opening, monkeypatch):
         assert db.get(Account, user["account_id"]).state["packs"]["a"] == 2500
 
 
-@pytest.mark.skipif(not os.getenv("PPB_TEST_RULES_EXECUTABLE"), reason="Native rules required")
-def test_real_native_job_preserves_statistics_and_replay(auth):
+@pytest.mark.parametrize(
+    "backend", ["python"] + (["swift"] if os.getenv("PPB_TEST_RULES_EXECUTABLE") else [])
+)
+def test_real_native_job_preserves_statistics_and_replay(auth, backend):
     from app.game_api import get_rules
     from app.main import app
+    from app.native_rules import PythonRules
     from app.rules import SwiftRules
 
     client, sessions = auth
-    rules = SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
+    rules = (
+        PythonRules()
+        if backend == "python"
+        else SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
+    )
     app.dependency_overrides[get_rules] = lambda: rules
     user = registered(client)
     with sessions() as db:

@@ -17,10 +17,12 @@ from app.performance import timed
 
 class SwiftRules:
     supports_context = True
+    backend = "swift"
 
     def __init__(self, executable: str, timeout: float = 60):
         self.executable = executable
         self.timeout = timeout
+        self.configured = bool(executable)
 
     @timed("rules")
     def apply(self, state: dict, command: dict, *, prices=None, protected=None):
@@ -68,4 +70,10 @@ class SwiftRules:
             raise HTTPException(503, "rules_engine_invalid_output") from error
 
 
-rules = SwiftRules(settings.rules_executable, settings.rules_timeout)
+if settings.rules_backend == "swift":
+    # Explicit rollback/oracle only. Python errors never silently switch engines.
+    rules = SwiftRules(settings.rules_executable, settings.rules_timeout)
+else:
+    from app.native_rules import PythonRules
+
+    rules = PythonRules(settings.rules_data_directory or None)

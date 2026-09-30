@@ -1,0 +1,1507 @@
+{
+  "version": 1,
+  "asOf": "2026-09-22",
+  "currency": "USD",
+  "source": "TCGplayer market price via TCGCSV",
+  "packs": {
+    "base1": {
+      "usd": 914.23,
+      "productID": 138130,
+      "productName": "Base Set Booster Pack [Revised Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138130/pokemon-base-set-base-set-booster-pack-revised-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "base2": {
+      "usd": 315.54,
+      "productID": 138129,
+      "productName": "Jungle Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138129/pokemon-jungle-jungle-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "base3": {
+      "usd": 336.83,
+      "productID": 138134,
+      "productName": "Fossil Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138134/pokemon-fossil-fossil-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "base4": {
+      "usd": 436.74,
+      "productID": 138149,
+      "productName": "Base Set 2 Booster Pack",
+      "url": "https://www.tcgplayer.com/product/138149/pokemon-base-set-2-base-set-2-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "base5": {
+      "usd": 325.51,
+      "productID": 138135,
+      "productName": "Team Rocket Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138135/pokemon-team-rocket-team-rocket-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw1": {
+      "usd": 203.49,
+      "productID": 98553,
+      "productName": "Black and White Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98553/pokemon-black-and-white-black-and-white-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw10": {
+      "usd": 253.74,
+      "productID": 98573,
+      "productName": "Plasma Blast Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98573/pokemon-plasma-blast-plasma-blast-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw11": {
+      "usd": 382.43,
+      "productID": 98581,
+      "productName": "Legendary Treasures Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98581/pokemon-legendary-treasures-legendary-treasures-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw2": {
+      "usd": 97.72,
+      "productID": 98549,
+      "productName": "Emerging Powers Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98549/pokemon-emerging-powers-emerging-powers-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw3": {
+      "usd": 168.79,
+      "productID": 98570,
+      "productName": "Noble Victories Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98570/pokemon-noble-victories-noble-victories-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw4": {
+      "usd": 367.06,
+      "productID": 98538,
+      "productName": "Next Destinies Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98538/pokemon-next-destinies-next-destinies-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw6": {
+      "usd": 355.4,
+      "productID": 98541,
+      "productName": "Dragons Exalted Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98541/pokemon-dragons-exalted-dragons-exalted-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw7": {
+      "usd": 234.39,
+      "productID": 98554,
+      "productName": "Boundaries Crossed Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98554/pokemon-boundaries-crossed-boundaries-crossed-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw8": {
+      "usd": 549.96,
+      "productID": 98526,
+      "productName": "Plasma Storm Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98526/pokemon-plasma-storm-plasma-storm-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "bw9": {
+      "usd": 290.0,
+      "productID": 98517,
+      "productName": "Plasma Freeze Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98517/pokemon-plasma-freeze-plasma-freeze-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "cel25": {
+      "usd": 34.58,
+      "productID": 248577,
+      "productName": "Celebrations Booster Pack",
+      "url": "https://www.tcgplayer.com/product/248577/pokemon-celebrations-celebrations-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "col1": {
+      "usd": 1114.85,
+      "productID": 98515,
+      "productName": "Call of Legends Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98515/pokemon-call-of-legends-call-of-legends-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dc1": {
+      "usd": 429.59,
+      "productID": 229226,
+      "productName": "Double Crisis Booster Pack",
+      "url": "https://www.tcgplayer.com/product/229226/pokemon-double-crisis-double-crisis-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dp1": {
+      "usd": 195.0,
+      "productID": 98525,
+      "productName": "Diamond and Pearl Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98525/pokemon-diamond-and-pearl-diamond-and-pearl-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dp2": {
+      "usd": 339.83,
+      "productID": 98561,
+      "productName": "Mysterious Treasures Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98561/pokemon-mysterious-treasures-mysterious-treasures-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dp4": {
+      "usd": 323.33,
+      "productID": 98545,
+      "productName": "Great Encounters Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98545/pokemon-great-encounters-great-encounters-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dp6": {
+      "usd": 423.77,
+      "productID": 98537,
+      "productName": "Legends Awakened Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98537/pokemon-legends-awakened-legends-awakened-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "dp7": {
+      "usd": 545.27,
+      "productID": 98589,
+      "productName": "Stormfront Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98589/pokemon-stormfront-stormfront-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex1": {
+      "usd": 799.99,
+      "productID": 98558,
+      "productName": "Ruby and Sapphire Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98558/pokemon-ex-ruby-and-sapphire-ruby-and-sapphire-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex13": {
+      "usd": 1899.99,
+      "productID": 98522,
+      "productName": "Holon Phantoms Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98522/pokemon-ex-holon-phantoms-holon-phantoms-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex14": {
+      "usd": 1299.99,
+      "productID": 98566,
+      "productName": "Crystal Guardians Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98566/pokemon-ex-crystal-guardians-crystal-guardians-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex16": {
+      "usd": 949.99,
+      "productID": 98529,
+      "productName": "Power Keepers Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98529/pokemon-ex-power-keepers-power-keepers-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex3": {
+      "usd": 1250.0,
+      "productID": 98519,
+      "productName": "EX Dragon Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98519/pokemon-ex-dragon-ex-dragon-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex5": {
+      "usd": 800.0,
+      "productID": 98595,
+      "productName": "Hidden Legends Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98595/pokemon-ex-hidden-legends-hidden-legends-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex6": {
+      "usd": 1009.96,
+      "productID": 98946,
+      "productName": "FireRed & LeafGreen Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98946/pokemon-ex-firered-and-leafgreen-firered-and-leafgreen-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "ex9": {
+      "usd": 1000.0,
+      "productID": 98546,
+      "productName": "Emerald Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98546/pokemon-ex-emerald-emerald-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "g1": {
+      "usd": 308.82,
+      "productID": 187238,
+      "productName": "Generations Booster Pack",
+      "url": "https://www.tcgplayer.com/product/187238/pokemon-generations-generations-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "gym1": {
+      "usd": 274.79,
+      "productID": 138138,
+      "productName": "Gym Heroes Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138138/pokemon-gym-heroes-gym-heroes-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "gym2": {
+      "usd": 419.99,
+      "productID": 138139,
+      "productName": "Gym Challenge Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138139/pokemon-gym-challenge-gym-challenge-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "hgss1": {
+      "usd": 466.66,
+      "productID": 98530,
+      "productName": "HeartGold SoulSilver Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98530/pokemon-heartgold-soulsilver-heartgold-soulsilver-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "hgss2": {
+      "usd": 426.24,
+      "productID": 98582,
+      "productName": "Unleashed Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98582/pokemon-unleashed-unleashed-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me1": {
+      "usd": 8.4,
+      "productID": 644352,
+      "productName": "Mega Evolution Booster Pack",
+      "url": "https://www.tcgplayer.com/product/644352/pokemon-me01-mega-evolution-mega-evolution-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me2": {
+      "usd": 11.96,
+      "productID": 654144,
+      "productName": "Phantasmal Flames Booster Pack",
+      "url": "https://www.tcgplayer.com/product/654144/pokemon-me02-phantasmal-flames-phantasmal-flames-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "neo2": {
+      "usd": 524.99,
+      "productID": 138143,
+      "productName": "Neo Discovery Booster Pack [Unlimited Edition]",
+      "url": "https://www.tcgplayer.com/product/138143/pokemon-neo-discovery-neo-discovery-booster-pack-unlimited-edition",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "pgo": {
+      "usd": 14.46,
+      "productID": 274421,
+      "productName": "Pokemon GO Booster Pack",
+      "url": "https://www.tcgplayer.com/product/274421/pokemon-pokemon-go-pokemon-go-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "pl1": {
+      "usd": 360.79,
+      "productID": 98591,
+      "productName": "Platinum Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98591/pokemon-platinum-platinum-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "pl2": {
+      "usd": 370.0,
+      "productID": 98542,
+      "productName": "Rising Rivals Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98542/pokemon-rising-rivals-rising-rivals-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "pl3": {
+      "usd": 716.66,
+      "productID": 98574,
+      "productName": "Supreme Victors Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98574/pokemon-supreme-victors-supreme-victors-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "pl4": {
+      "usd": 515.29,
+      "productID": 98594,
+      "productName": "Arceus Booster Pack",
+      "url": "https://www.tcgplayer.com/product/98594/pokemon-arceus-arceus-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "rsv10pt5": {
+      "usd": 13.97,
+      "productID": 630699,
+      "productName": "White Flare Booster Pack",
+      "url": "https://www.tcgplayer.com/product/630699/pokemon-sv-white-flare-white-flare-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm1": {
+      "usd": 22.59,
+      "productID": 129385,
+      "productName": "Sun & Moon Booster Pack",
+      "url": "https://www.tcgplayer.com/product/129385/pokemon-sm-base-set-sun-and-moon-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm10": {
+      "usd": 67.95,
+      "productID": 185718,
+      "productName": "Unbroken Bonds Booster Pack",
+      "url": "https://www.tcgplayer.com/product/185718/pokemon-sm-unbroken-bonds-unbroken-bonds-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm11": {
+      "usd": 79.75,
+      "productID": 191883,
+      "productName": "Unified Minds Booster Pack",
+      "url": "https://www.tcgplayer.com/product/191883/pokemon-sm-unified-minds-unified-minds-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm115": {
+      "usd": 48.38,
+      "productID": 198634,
+      "productName": "Hidden Fates Booster Pack",
+      "url": "https://www.tcgplayer.com/product/198634/pokemon-hidden-fates-hidden-fates-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm12": {
+      "usd": 74.33,
+      "productID": 199263,
+      "productName": "Cosmic Eclipse Booster Pack",
+      "url": "https://www.tcgplayer.com/product/199263/pokemon-sm-cosmic-eclipse-cosmic-eclipse-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm2": {
+      "usd": 35.92,
+      "productID": 129889,
+      "productName": "Guardians Rising Booster Pack",
+      "url": "https://www.tcgplayer.com/product/129889/pokemon-sm-guardians-rising-guardians-rising-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm3": {
+      "usd": 31.42,
+      "productID": 133774,
+      "productName": "Burning Shadows Booster Pack",
+      "url": "https://www.tcgplayer.com/product/133774/pokemon-sm-burning-shadows-burning-shadows-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm35": {
+      "usd": 109.94,
+      "productID": 155880,
+      "productName": "Shining Legends Booster Pack",
+      "url": "https://www.tcgplayer.com/product/155880/pokemon-shining-legends-shining-legends-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm4": {
+      "usd": 18.33,
+      "productID": 146996,
+      "productName": "Crimson Invasion Booster Pack",
+      "url": "https://www.tcgplayer.com/product/146996/pokemon-sm-crimson-invasion-crimson-invasion-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm5": {
+      "usd": 49.67,
+      "productID": 155662,
+      "productName": "Ultra Prism Booster Pack",
+      "url": "https://www.tcgplayer.com/product/155662/pokemon-sm-ultra-prism-ultra-prism-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm6": {
+      "usd": 47.28,
+      "productID": 164297,
+      "productName": "Forbidden Light Booster Pack",
+      "url": "https://www.tcgplayer.com/product/164297/pokemon-sm-forbidden-light-forbidden-light-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm7": {
+      "usd": 65.77,
+      "productID": 170274,
+      "productName": "Celestial Storm Booster Pack",
+      "url": "https://www.tcgplayer.com/product/170274/pokemon-sm-celestial-storm-celestial-storm-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm75": {
+      "usd": 105.69,
+      "productID": 173392,
+      "productName": "Dragon Majesty Booster Pack",
+      "url": "https://www.tcgplayer.com/product/173392/pokemon-dragon-majesty-dragon-majesty-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm8": {
+      "usd": 59.36,
+      "productID": 175510,
+      "productName": "Lost Thunder Booster Pack",
+      "url": "https://www.tcgplayer.com/product/175510/pokemon-sm-lost-thunder-lost-thunder-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sm9": {
+      "usd": 176.71,
+      "productID": 690691,
+      "productName": "Team Up - Mini Booster Pack",
+      "url": "https://www.tcgplayer.com/product/690691/pokemon-sm-team-up-team-up-mini-booster-pack",
+      "sampleCount": 2,
+      "asOf": "2026-09-22"
+    },
+    "sv1": {
+      "usd": 9.1,
+      "productID": 476451,
+      "productName": "Scarlet & Violet Booster Pack",
+      "url": "https://www.tcgplayer.com/product/476451/pokemon-sv01-scarlet-and-violet-base-set-scarlet-and-violet-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv10": {
+      "usd": 9.19,
+      "productID": 624683,
+      "productName": "Destined Rivals Booster Pack",
+      "url": "https://www.tcgplayer.com/product/624683/pokemon-sv10-destined-rivals-destined-rivals-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv2": {
+      "usd": 15.57,
+      "productID": 493976,
+      "productName": "Paldea Evolved Booster Pack",
+      "url": "https://www.tcgplayer.com/product/493976/pokemon-sv02-paldea-evolved-paldea-evolved-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv3": {
+      "usd": 13.01,
+      "productID": 501256,
+      "productName": "Obsidian Flames Booster Pack",
+      "url": "https://www.tcgplayer.com/product/501256/pokemon-sv03-obsidian-flames-obsidian-flames-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv3pt5": {
+      "usd": 29.63,
+      "productID": 504467,
+      "productName": "151 Booster Pack",
+      "url": "https://www.tcgplayer.com/product/504467/pokemon-sv-scarlet-and-violet-151-151-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv4": {
+      "usd": 8.37,
+      "productID": 512822,
+      "productName": "Paradox Rift Booster Pack",
+      "url": "https://www.tcgplayer.com/product/512822/pokemon-sv04-paradox-rift-paradox-rift-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv4pt5": {
+      "usd": 24.88,
+      "productID": 528038,
+      "productName": "Paldean Fates Booster Pack",
+      "url": "https://www.tcgplayer.com/product/528038/pokemon-sv-paldean-fates-paldean-fates-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv5": {
+      "usd": 9.68,
+      "productID": 532841,
+      "productName": "Temporal Forces Booster Pack",
+      "url": "https://www.tcgplayer.com/product/532841/pokemon-sv05-temporal-forces-temporal-forces-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv6": {
+      "usd": 9.19,
+      "productID": 543843,
+      "productName": "Twilight Masquerade Booster Pack",
+      "url": "https://www.tcgplayer.com/product/543843/pokemon-sv06-twilight-masquerade-twilight-masquerade-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv6pt5": {
+      "usd": 14.6,
+      "productID": 552997,
+      "productName": "Shrouded Fable Booster Pack",
+      "url": "https://www.tcgplayer.com/product/552997/pokemon-sv-shrouded-fable-shrouded-fable-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv7": {
+      "usd": 10.65,
+      "productID": 557331,
+      "productName": "Stellar Crown Booster Pack",
+      "url": "https://www.tcgplayer.com/product/557331/pokemon-sv07-stellar-crown-stellar-crown-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv8": {
+      "usd": 8.4,
+      "productID": 565604,
+      "productName": "Surging Sparks Booster Pack",
+      "url": "https://www.tcgplayer.com/product/565604/pokemon-sv08-surging-sparks-surging-sparks-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv8pt5": {
+      "usd": 13.89,
+      "productID": 593294,
+      "productName": "Prismatic Evolutions Booster Pack",
+      "url": "https://www.tcgplayer.com/product/593294/pokemon-sv-prismatic-evolutions-prismatic-evolutions-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "sv9": {
+      "usd": 6.57,
+      "productID": 610935,
+      "productName": "Journey Together Booster Pack",
+      "url": "https://www.tcgplayer.com/product/610935/pokemon-sv09-journey-together-journey-together-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh1": {
+      "usd": 11.09,
+      "productID": 206028,
+      "productName": "Sword & Shield Booster Pack",
+      "url": "https://www.tcgplayer.com/product/206028/pokemon-swsh01-sword-and-shield-base-set-sword-and-shield-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh10": {
+      "usd": 10.61,
+      "productID": 265521,
+      "productName": "Astral Radiance Booster Pack",
+      "url": "https://www.tcgplayer.com/product/265521/pokemon-swsh10-astral-radiance-astral-radiance-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh11": {
+      "usd": 19.56,
+      "productID": 277325,
+      "productName": "Lost Origin Booster Pack",
+      "url": "https://www.tcgplayer.com/product/277325/pokemon-swsh11-lost-origin-lost-origin-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh12": {
+      "usd": 15.2,
+      "productID": 283388,
+      "productName": "Silver Tempest Booster Pack",
+      "url": "https://www.tcgplayer.com/product/283388/pokemon-swsh12-silver-tempest-silver-tempest-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh12pt5": {
+      "usd": 25.45,
+      "productID": 453466,
+      "productName": "Crown Zenith Booster Pack",
+      "url": "https://www.tcgplayer.com/product/453466/pokemon-swsh-crown-zenith-crown-zenith-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh2": {
+      "usd": 11.91,
+      "productID": 210562,
+      "productName": "Rebel Clash Booster Pack",
+      "url": "https://www.tcgplayer.com/product/210562/pokemon-swsh02-rebel-clash-rebel-clash-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh3": {
+      "usd": 9.85,
+      "productID": 216852,
+      "productName": "Darkness Ablaze Booster Pack",
+      "url": "https://www.tcgplayer.com/product/216852/pokemon-swsh03-darkness-ablaze-darkness-ablaze-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh35": {
+      "usd": 19.65,
+      "productID": 218789,
+      "productName": "Champion's Path Booster Pack",
+      "url": "https://www.tcgplayer.com/product/218789/pokemon-champions-path-champions-path-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh4": {
+      "usd": 10.99,
+      "productID": 221312,
+      "productName": "Vivid Voltage Booster Pack",
+      "url": "https://www.tcgplayer.com/product/221312/pokemon-swsh04-vivid-voltage-vivid-voltage-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh45": {
+      "usd": 16.46,
+      "productID": 232636,
+      "productName": "Shining Fates Booster Pack",
+      "url": "https://www.tcgplayer.com/product/232636/pokemon-shining-fates-shining-fates-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh5": {
+      "usd": 9.68,
+      "productID": 229276,
+      "productName": "Battle Styles Booster Pack",
+      "url": "https://www.tcgplayer.com/product/229276/pokemon-swsh05-battle-styles-battle-styles-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh6": {
+      "usd": 12.01,
+      "productID": 236257,
+      "productName": "Chilling Reign Booster Pack",
+      "url": "https://www.tcgplayer.com/product/236257/pokemon-swsh06-chilling-reign-chilling-reign-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh7": {
+      "usd": 46.43,
+      "productID": 244337,
+      "productName": "Evolving Skies Booster Pack",
+      "url": "https://www.tcgplayer.com/product/244337/pokemon-swsh07-evolving-skies-evolving-skies-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh8": {
+      "usd": 19.09,
+      "productID": 247646,
+      "productName": "Fusion Strike Booster Pack",
+      "url": "https://www.tcgplayer.com/product/247646/pokemon-swsh08-fusion-strike-fusion-strike-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "swsh9": {
+      "usd": 16.65,
+      "productID": 256124,
+      "productName": "Brilliant Stars Booster Pack",
+      "url": "https://www.tcgplayer.com/product/256124/pokemon-swsh09-brilliant-stars-brilliant-stars-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy1": {
+      "usd": 125.13,
+      "productID": 91602,
+      "productName": "XY Booster Pack",
+      "url": "https://www.tcgplayer.com/product/91602/pokemon-xy-base-set-xy-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy10": {
+      "usd": 43.87,
+      "productID": 168114,
+      "productName": "XY Fates Collide Booster Pack",
+      "url": "https://www.tcgplayer.com/product/168114/pokemon-xy-fates-collide-xy-fates-collide-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy11": {
+      "usd": 31.17,
+      "productID": 130013,
+      "productName": "Steam Siege Booster Pack",
+      "url": "https://www.tcgplayer.com/product/130013/pokemon-xy-steam-siege-steam-siege-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy12": {
+      "usd": 68.55,
+      "productID": 129907,
+      "productName": "Evolutions Booster Pack",
+      "url": "https://www.tcgplayer.com/product/129907/pokemon-xy-evolutions-evolutions-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy2": {
+      "usd": 160.9,
+      "productID": 91595,
+      "productName": "Flashfire Booster Pack",
+      "url": "https://www.tcgplayer.com/product/91595/pokemon-xy-flashfire-flashfire-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy3": {
+      "usd": 78.74,
+      "productID": 92169,
+      "productName": "Furious Fists Booster Pack",
+      "url": "https://www.tcgplayer.com/product/92169/pokemon-xy-furious-fists-furious-fists-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy4": {
+      "usd": 230.17,
+      "productID": 94622,
+      "productName": "XY Phantom Forces Booster Pack",
+      "url": "https://www.tcgplayer.com/product/94622/pokemon-xy-phantom-forces-xy-phantom-forces-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy5": {
+      "usd": 64.19,
+      "productID": 97751,
+      "productName": "XY Primal Clash Booster Pack",
+      "url": "https://www.tcgplayer.com/product/97751/pokemon-xy-primal-clash-xy-primal-clash-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy6": {
+      "usd": 76.54,
+      "productID": 129906,
+      "productName": "Roaring Skies Booster Pack",
+      "url": "https://www.tcgplayer.com/product/129906/pokemon-xy-roaring-skies-roaring-skies-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy7": {
+      "usd": 140.02,
+      "productID": 100490,
+      "productName": "XY Ancient Origins Booster Pack",
+      "url": "https://www.tcgplayer.com/product/100490/pokemon-xy-ancient-origins-xy-ancient-origins-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy8": {
+      "usd": 64.43,
+      "productID": 107666,
+      "productName": "XY BREAKthrough Booster Pack",
+      "url": "https://www.tcgplayer.com/product/107666/pokemon-xy-breakthrough-xy-breakthrough-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "xy9": {
+      "usd": 47.01,
+      "productID": 111279,
+      "productName": "XY BREAKpoint Booster Pack",
+      "url": "https://www.tcgplayer.com/product/111279/pokemon-xy-breakpoint-xy-breakpoint-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "zsv10pt5": {
+      "usd": 14.9,
+      "productID": 630434,
+      "productName": "Black Bolt Booster Pack",
+      "url": "https://www.tcgplayer.com/product/630434/pokemon-sv-black-bolt-black-bolt-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me2pt5": {
+      "usd": 13.2,
+      "productID": 672434,
+      "productName": "Ascended Heroes Booster Pack",
+      "url": "https://www.tcgplayer.com/product/672434/pokemon-me-ascended-heroes-ascended-heroes-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me3": {
+      "usd": 5.8,
+      "productID": 672398,
+      "productName": "Perfect Order Booster Pack",
+      "url": "https://www.tcgplayer.com/product/672398/pokemon-me03-perfect-order-perfect-order-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me4": {
+      "usd": 5.76,
+      "productID": 684446,
+      "productName": "Chaos Rising Booster Pack",
+      "url": "https://www.tcgplayer.com/product/684446/pokemon-me04-chaos-rising-chaos-rising-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "me5": {
+      "usd": 6.11,
+      "productID": 692944,
+      "productName": "Pitch Black Booster Pack",
+      "url": "https://www.tcgplayer.com/product/692944/pokemon-me05-pitch-black-pitch-black-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    },
+    "cel30": {
+      "usd": 16.44,
+      "productID": 696613,
+      "productName": "30th Celebration Booster Pack",
+      "url": "https://www.tcgplayer.com/product/696613/pokemon-me-30th-celebration-30th-celebration-booster-pack",
+      "sampleCount": 1,
+      "asOf": "2026-09-22"
+    }
+  },
+  "lastRefresh": "2026-09-23T10:21:15.879928+00:00",
+  "refreshReport": {
+    "base2": {
+      "imported": 63,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "base3": {
+      "imported": 62,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "base1": {
+      "imported": 99,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "base4": {
+      "imported": 128,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "base5": {
+      "imported": 80,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "neo1": {
+      "imported": 109,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "gym2": {
+      "imported": 130,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "gym1": {
+      "imported": 132,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "neo3": {
+      "imported": 66,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "neo2": {
+      "imported": 75,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "neo4": {
+      "imported": 111,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "base6": {
+      "imported": 214,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ecard1": {
+      "imported": 323,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ecard2": {
+      "imported": 316,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ecard3": {
+      "imported": 279,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex1": {
+      "imported": 204,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex2": {
+      "imported": 193,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex3": {
+      "imported": 188,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex4": {
+      "imported": 184,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex5": {
+      "imported": 194,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex6": {
+      "imported": 232,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex7": {
+      "imported": 210,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex8": {
+      "imported": 208,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex9": {
+      "imported": 203,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex11": {
+      "imported": 126,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex10": {
+      "imported": 210,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex12": {
+      "imported": 171,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "ex13": {
+      "imported": 102,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex14": {
+      "imported": 163,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex16": {
+      "imported": 192,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "ex15": {
+      "imported": 42,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "dp1": {
+      "imported": 250,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "dp2": {
+      "imported": 242,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "dp4": {
+      "imported": 208,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "dp3": {
+      "imported": 260,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "dp5": {
+      "imported": 196,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "dp7": {
+      "imported": 198,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "dp6": {
+      "imported": 285,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "pl1": {
+      "imported": 249,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "pl2": {
+      "imported": 214,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "pl4": {
+      "imported": 201,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "hgss1": {
+      "imported": 213,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "pl3": {
+      "imported": 287,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "hgss2": {
+      "imported": 166,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "hgss3": {
+      "imported": 156,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "hgss4": {
+      "imported": 176,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "col1": {
+      "imported": 181,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw1": {
+      "imported": 215,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw2": {
+      "imported": 192,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw3": {
+      "imported": 191,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw4": {
+      "imported": 183,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw5": {
+      "imported": 198,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "bw6": {
+      "imported": 230,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw8": {
+      "imported": 186,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw7": {
+      "imported": 273,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw9": {
+      "imported": 140,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw10": {
+      "imported": 147,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "bw11": {
+      "imported": 213,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy1": {
+      "imported": 259,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy2": {
+      "imported": 188,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy3": {
+      "imported": 201,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy4": {
+      "imported": 206,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy5": {
+      "imported": 236,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "dc1": {
+      "imported": 66,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy6": {
+      "imported": 167,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy7": {
+      "imported": 156,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy8": {
+      "imported": 290,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy9": {
+      "imported": 211,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "g1": {
+      "imported": 152,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy10": {
+      "imported": 210,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy11": {
+      "imported": 198,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "xy12": {
+      "imported": 184,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm1": {
+      "imported": 263,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm2": {
+      "imported": 248,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm35": {
+      "imported": 130,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm3": {
+      "imported": 244,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm4": {
+      "imported": 192,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm5": {
+      "imported": 253,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm6": {
+      "imported": 216,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm7": {
+      "imported": 285,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm75": {
+      "imported": 118,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm8": {
+      "imported": 353,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm9": {
+      "imported": 293,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm10": {
+      "imported": 364,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm11": {
+      "imported": 409,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm115": {
+      "imported": 121,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sm12": {
+      "imported": 402,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh1": {
+      "imported": 351,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh2": {
+      "imported": 322,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh3": {
+      "imported": 325,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh35": {
+      "imported": 122,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh45": {
+      "imported": 105,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh4": {
+      "imported": 307,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh5": {
+      "imported": 264,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh6": {
+      "imported": 295,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "cel25": {
+      "imported": 23,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh7": {
+      "imported": 297,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh8": {
+      "imported": 461,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh9": {
+      "imported": 271,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh10": {
+      "imported": 287,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "pgo": {
+      "imported": 127,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh11": {
+      "imported": 320,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh12": {
+      "imported": 312,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "swsh12pt5": {
+      "imported": 258,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv1": {
+      "imported": 444,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv2": {
+      "imported": 451,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv3": {
+      "imported": 396,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv3pt5": {
+      "imported": 356,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv4": {
+      "imported": 428,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv4pt5": {
+      "imported": 322,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv5": {
+      "imported": 358,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv6pt5": {
+      "imported": 154,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv6": {
+      "imported": 373,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv7": {
+      "imported": 300,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv8": {
+      "imported": 417,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv8pt5": {
+      "imported": 435,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv9": {
+      "imported": 331,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "sv10": {
+      "imported": 405,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "rsv10pt5": {
+      "imported": 407,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me1": {
+      "imported": 308,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "zsv10pt5": {
+      "imported": 402,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me2": {
+      "imported": 214,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me3": {
+      "imported": 203,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me2pt5": {
+      "imported": 613,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me4": {
+      "imported": 198,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "me5": {
+      "imported": 194,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    },
+    "cel30c": {
+      "imported": 30,
+      "ambiguousSkipped": 0,
+      "packUpdated": false
+    },
+    "cel30": {
+      "imported": 158,
+      "ambiguousSkipped": 0,
+      "packUpdated": true
+    }
+  }
+}

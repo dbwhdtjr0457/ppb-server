@@ -1,7 +1,7 @@
 """All account writes, deduplication and event records commit together.
 
-SQLite has no SELECT FOR UPDATE. BEGIN IMMEDIATE serializes writers BEFORE
-reading a revision; an in-process lock would fail with multiple workers.
+Rules are pure: compute outside SQLite's global write lock, then atomically
+recheck every mutable input under BEGIN IMMEDIATE before publishing a result.
 """
 
 import hashlib
@@ -17,7 +17,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app import inventory, prices, statistics
 from app.game_schemas import CommandRequest
-from app.models import Account, Device, GameEvent, TokenPolicy, utcnow
+from app.models import Account, Device, GameEvent, Inventory, TokenPolicy, utcnow
 from app.performance import record
 
 MAX_COUNTER = 10**15
@@ -87,6 +87,53 @@ def read_state(db: Session, account_id: str):
     return snapshot(account, db)
 
 
+def _replay(db, account_id, request, fingerprint):
+    existing = db.scalar(
+        select(GameEvent).where(
+            GameEvent.account_id == account_id, GameEvent.request_id == str(request.request_id)
+        )
+    )
+    if existing is None:
+        return None
+    if existing.fingerprint != fingerprint:
+        raise HTTPException(409, "idempotency_key_reused")
+    return {
+        "snapshot": snapshot(db.get(Account, account_id), db),
+        "result": existing.result,
+        "event_revision": existing.revision,
+        "replayed": True,
+    }
+
+
+def _credit_inputs(db, account_id, device_id):
+    device = db.get(Device, (account_id, device_id))
+    policy = db.get(TokenPolicy, account_id)
+    return (
+        (device.collected_total, device.policy_version) if device else None,
+        (policy.version, policy.collector_device_id) if policy else None,
+    )
+
+
+def _sync_inventory(db, account, previous_printings):
+    if not inventory.normalized(account.state):
+        return
+    current_printings = inventory.counts(account.state)
+    if previous_printings == current_printings:
+        # Token reports, purchases and preferences usually leave printings alone.
+        # Verify the real projection with scalar columns instead of constructing
+        # hundreds of ORM objects. Missing/stale legacy projections still repair.
+        projected = dict(
+            db.execute(
+                select(Inventory.printing, Inventory.quantity).where(
+                    Inventory.account_id == account.id
+                )
+            ).all()
+        )
+        if projected == current_printings:
+            return
+    inventory.sync(db, account)
+
+
 def execute(
     db: Session,
     account_id: str,
@@ -117,101 +164,140 @@ def execute(
     if scope is not None:
         canonical = json.dumps({"request": canonical, "scope": scope}, sort_keys=True)
     fingerprint = hashlib.sha256(canonical.encode()).hexdigest()
+    transaction_started = None
     try:
-        lock_started = time.monotonic()
-        db.execute(text("BEGIN IMMEDIATE"))
-        record("write_lock", time.monotonic() - lock_started)
+        prepare_started = time.monotonic()
+        # An explicit deferred transaction gives all preparation reads one WAL
+        # snapshot without preventing another account from committing a write.
+        db.execute(text("BEGIN"))
         if session_hash is not None:
             from app.auth_service import Principal, require_session
 
             require_session(db, Principal(account_id, device_id, session_hash))
-        existing = db.scalar(
-            select(GameEvent).where(
-                GameEvent.account_id == account_id, GameEvent.request_id == str(request.request_id)
-            )
-        )
-        if existing:
-            if existing.fingerprint != fingerprint:
-                raise HTTPException(409, "idempotency_key_reused")
-            current = db.get(Account, account_id)
-            response = {
-                "snapshot": snapshot(current, db),
-                "result": existing.result,
-                "event_revision": existing.revision,
-                "replayed": True,
-            }
+        response = _replay(db, account_id, request, fingerprint)
+        if response is not None:
             db.rollback()
             return response
         account = db.get(Account, account_id)
-        if account is None:
-            if request.expected_revision != 0:
-                raise HTTPException(409, {"code": "revision_conflict", "revision": 0})
-            # First-run gift eligibility is a server invariant, not a promise
-            # that clients will send initialize before earning/spending tokens.
-            initialized, _, _ = rules.apply(initial_state(), {"kind": "initialize"})
-            account = Account(
-                id=account_id, revision=0, balance=balance(initialized), state=initialized
-            )
-            db.add(account)
-            db.flush()
-        if account.revision != request.expected_revision:
-            raise HTTPException(409, {"code": "revision_conflict", "revision": account.revision})
-        state = deepcopy(account.state)
+        existed = account is not None
+        revision = account.revision if existed else 0
+        if revision != request.expected_revision:
+            raise HTTPException(409, {"code": "revision_conflict", "revision": revision})
+        observed_state = account.state if existed else None
+        state = deepcopy(observed_state)
+        previous_printings = (
+            inventory.counts(state) if existed and inventory.normalized(state) else None
+        )
+        before = account.balance if existed else None
         price_version, price_payload = prices.current(db, rules)
         protected = inventory.floors(db, account_id)
+        credit_inputs = _credit_inputs(db, account_id, device_id)
         prices.check_version(payload["kind"], request.price_version, price_version)
-        if price_version and payload["kind"] in prices.PRICED_COMMANDS:
-            _, quote, _ = prices.apply(
-                rules,
-                state,
-                {**payload, "kind": "quote", "quote_kind": payload["kind"]},
-                price_payload,
-                protected,
-            )
-            if request.quoted_tokens != quote.get("tokens"):
-                raise HTTPException(409, "quote_changed")
-        device = db.get(Device, (account_id, device_id))
-        if device is None:
-            device = Device(
-                account_id=account_id, id=device_id, collected_total=0, policy_version=0
-            )
-            db.add(device)
-        device.seen_at = utcnow()
-        before = account.balance
-        if payload["kind"] == "report_tokens":
-            total = payload["collected_total"]
-            delta = max(0, total - device.collected_total)
-            device.collected_total = max(total, device.collected_total)
-            policy = db.get(TokenPolicy, account_id)
-            credit_status = "credited"
-            if policy and device.policy_version != policy.version:
-                delta, credit_status = 0, "policy_baseline"
-                device.policy_version = policy.version
-            if policy and policy.collector_device_id not in (None, device_id):
-                delta, credit_status = 0, "other_collector_device"
-            state, result, version = prices.apply(
-                rules,
-                state,
-                {"kind": "apply_tokens", "collected_total": delta},
-                price_payload,
-                protected,
-            )
-            result["credited"] = delta
-            result["credit_status"] = credit_status
-        else:
-            state, result, version = prices.apply(rules, state, payload, price_payload, protected)
+        db.rollback()
+        record("command_prepare", time.monotonic() - prepare_started)
+
+        compute_started = time.monotonic()
+        try:
+            if not existed:
+                # First-run gift remains an invariant even if initialize was omitted.
+                state, _, _ = rules.apply(initial_state(), {"kind": "initialize"})
+                before = balance(state)
+            opening_mode = state.get("openingMode", "game")
+            device_total, device_policy = credit_inputs[0] or (0, 0)
+            policy = credit_inputs[1]
+            priced = price_version and payload["kind"] in prices.PRICED_COMMANDS
+            combined = getattr(rules, "apply_with_quote", None) if priced else None
+            if combined is not None:
+                state, result, version, quoted_tokens = combined(
+                    state, payload, prices=price_payload, protected=protected
+                )
+                if request.quoted_tokens != quoted_tokens:
+                    raise HTTPException(409, "quote_changed")
+            else:
+                if priced:
+                    _, quote, _ = prices.apply(
+                        rules,
+                        state,
+                        {**payload, "kind": "quote", "quote_kind": payload["kind"]},
+                        price_payload,
+                        protected,
+                    )
+                    if request.quoted_tokens != quote.get("tokens"):
+                        raise HTTPException(409, "quote_changed")
+                if payload["kind"] == "report_tokens":
+                    total = payload["collected_total"]
+                    delta = max(0, total - device_total)
+                    device_total = max(total, device_total)
+                    credit_status = "credited"
+                    if policy and device_policy != policy[0]:
+                        delta, credit_status = 0, "policy_baseline"
+                        device_policy = policy[0]
+                    if policy and policy[1] not in (None, device_id):
+                        delta, credit_status = 0, "other_collector_device"
+                    state, result, version = prices.apply(
+                        rules,
+                        state,
+                        {"kind": "apply_tokens", "collected_total": delta},
+                        price_payload,
+                        protected,
+                    )
+                    result["credited"] = delta
+                    result["credit_status"] = credit_status
+                else:
+                    state, result, version = prices.apply(
+                        rules, state, payload, price_payload, protected
+                    )
+        finally:
+            record("rules_compute", time.monotonic() - compute_started)
         if any(
             state.get("printingCards", {}).get(key, 0) < floor for key, floor in protected.items()
         ):
             raise HTTPException(409, "reserved_printing_protected")
-        result["opening_mode"] = account.state.get("openingMode", "game")
+        result["opening_mode"] = opening_mode
         result["price_version"] = price_version
         if request.rules_version is not None and request.rules_version != version:
             raise HTTPException(409, "rules_version_mismatch")
         after = balance(state)
+
+        lock_started = time.monotonic()
+        db.execute(text("BEGIN IMMEDIATE"))
+        transaction_started = time.monotonic()
+        record("write_lock", transaction_started - lock_started)
+        if session_hash is not None:
+            require_session(db, Principal(account_id, device_id, session_hash))
+        # Another worker may have committed this exact request while we computed.
+        response = _replay(db, account_id, request, fingerprint)
+        if response is not None:
+            db.rollback()
+            return response
+        account = db.get(Account, account_id)
+        current_revision = account.revision if account is not None else 0
+        if (
+            current_revision != revision
+            or (account is not None) != existed
+            # Internal legacy normalization/reconciliation may not advance a
+            # public revision. Do not overwrite those concurrent state repairs.
+            or (existed and (account.state != observed_state or account.balance != before))
+        ):
+            raise HTTPException(409, {"code": "revision_conflict", "revision": current_revision})
+        if _credit_inputs(db, account_id, device_id) != credit_inputs:
+            raise HTTPException(409, "token_policy_changed")
+        if prices.current_version(db, rules) != price_version:
+            raise HTTPException(409, "price_version_changed")
+        if inventory.floors(db, account_id) != protected:
+            raise HTTPException(409, "reserved_printings_changed")
+        if account is None:
+            account = Account(id=account_id, revision=0, balance=before, state=state)
+            db.add(account)
+            db.flush()
+        device = db.get(Device, (account_id, device_id))
+        if device is None:
+            device = Device(account_id=account_id, id=device_id)
+            db.add(device)
+        device.collected_total, device.policy_version = device_total, device_policy
+        device.seen_at = utcnow()
         account.state = state
-        if inventory.normalized(state):
-            inventory.sync(db, account)
+        _sync_inventory(db, account, previous_printings)
         account.balance = after
         account.revision += 1
         account.updated_at = utcnow()
@@ -253,3 +339,6 @@ def execute(
     except BaseException:
         db.rollback()
         raise
+    finally:
+        if transaction_started is not None:
+            record("write_transaction", time.monotonic() - transaction_started)

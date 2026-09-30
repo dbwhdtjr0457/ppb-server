@@ -136,11 +136,19 @@ def test_simultaneous_imports_of_one_snapshot_only_create_one_account(tmp_path, 
         assert db.scalar(select(func.count()).select_from(Account)) == 1
 
 
-@pytest.mark.skipif(
-    not os.getenv("PPB_TEST_RULES_EXECUTABLE"), reason="Set PPB_TEST_RULES_EXECUTABLE on macOS"
+@pytest.mark.parametrize(
+    "backend", ["python"] + (["swift"] if os.getenv("PPB_TEST_RULES_EXECUTABLE") else [])
 )
-def test_real_import_does_not_award_the_same_bonus_window_again(tmp_path, importer, monkeypatch):
-    rules = SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
+def test_real_import_does_not_award_the_same_bonus_window_again(
+    tmp_path, importer, monkeypatch, backend
+):
+    from app.native_rules import PythonRules
+
+    rules = (
+        PythonRules()
+        if backend == "python"
+        else SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
+    )
     monkeypatch.setattr(admin, "rules", rules)
     raw_instance = "local-account:window-123"
     state = {

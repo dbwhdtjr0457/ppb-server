@@ -15,6 +15,7 @@ from app.database import Base, get_db, make_engine
 from app.game_api import get_rules
 from app.game_service import initial_state
 from app.main import app
+from app.native_rules import PythonRules
 from app.rules import SwiftRules
 
 
@@ -22,13 +23,15 @@ def rule_test_identity(x_ppb_account_id: str = Header(), x_ppb_device_id: str = 
     return Principal(x_ppb_account_id, x_ppb_device_id, None)
 
 
-pytestmark = pytest.mark.skipif(
-    not os.getenv("PPB_TEST_RULES_EXECUTABLE"), reason="Set PPB_TEST_RULES_EXECUTABLE on macOS"
-)
+@pytest.fixture(params=["python"] + (["swift"] if os.getenv("PPB_TEST_RULES_EXECUTABLE") else []))
+def rule_engine(request):
+    if request.param == "python":
+        return PythonRules(Path(__file__).resolve().parents[1] / "data")
+    return SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
 
 
 @pytest.fixture
-def real_game(tmp_path):
+def real_game(tmp_path, rule_engine):
     engine = make_engine(f"sqlite:///{tmp_path}/real.db")
     sessions = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     Base.metadata.create_all(engine)
@@ -37,7 +40,7 @@ def real_game(tmp_path):
         with sessions() as session:
             yield session
 
-    rules = SwiftRules(os.environ["PPB_TEST_RULES_EXECUTABLE"])
+    rules = rule_engine
     app.dependency_overrides[get_db] = database
     app.dependency_overrides[get_rules] = lambda: rules
     app.dependency_overrides[identity] = rule_test_identity
@@ -207,15 +210,20 @@ def test_real_rejection_leaves_state_unchanged(real_game):
     assert client.get("/v1/state", headers=headers).json() == before
 
 
-def test_token_report_keeps_existing_dex_bonus_and_bonus_windows():
-    executable = Path(os.environ["PPB_TEST_RULES_EXECUTABLE"]).resolve()
-    dex = json.loads((executable.parent / "PokePackBar_PokePackBar.bundle/dex.json").read_text())
+def test_token_report_keeps_existing_dex_bonus_and_bonus_windows(rule_engine):
+    if isinstance(rule_engine, PythonRules):
+        dexes = rule_engine.data["dexes"]
+    else:
+        executable = Path(rule_engine.executable).resolve()
+        dexes = json.loads(
+            (executable.parent / "PokePackBar_PokePackBar.bundle/dex.json").read_text()
+        )["dexes"]
     state = initial_state()
     state["claimedDex"] = [
         f"{entry['id']}#{len(entry['milestones']) - 1}" if entry["kind"] == "set" else entry["id"]
-        for entry in dex["dexes"][:10]
+        for entry in dexes[:10]
     ]
-    rules = SwiftRules(str(executable))
+    rules = rule_engine
     credited, _, _ = rules.apply(state, {"kind": "apply_tokens", "collected_total": 100000})
     assert credited["usedSinceInstall"] == 100000
     assert credited["perkTokens"] > 0

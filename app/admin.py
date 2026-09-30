@@ -110,11 +110,13 @@ def import_save(account_id: str, source: Path, apply: bool, *, source_format: st
     canonical_digest = hashlib.sha256(
         json.dumps(state, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
     ).hexdigest()
-    before = snapshot_summary(state)
     normalize_legacy_bonus(state)
     prepared = deepcopy(state)
     state, _, version = rules.apply(state, {"kind": "inspect"})
     verify_import_preserves_resources(prepared, state)
+    # Invalid legacy structures must fail at the rules boundary before summaries
+    # assume typed lists/maps. This remains the original state's resource count.
+    before = snapshot_summary(prepared)
     amount = balance(state)
     report = {
         "applied": apply,

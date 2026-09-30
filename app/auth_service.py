@@ -131,7 +131,7 @@ def identity(
     require_session(db, who)
     if x_ppb_account_id is not None and str(x_ppb_account_id) != who.account_id:
         raise HTTPException(403, "account_mismatch")
-    # Game commands acquire their write lock before reading account resources.
+    # Game commands take a fresh snapshot, then recheck inputs under the write lock.
     db.rollback()
     return who
 

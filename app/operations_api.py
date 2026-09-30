@@ -11,6 +11,7 @@ from app.auth_service import gateway
 from app.config import settings
 from app.models import ServerJob
 from app.performance import summary
+from app.rules import rules
 
 router = APIRouter(prefix="/v1/server", tags=["operations"], dependencies=[Depends(gateway)])
 
@@ -19,7 +20,7 @@ router = APIRouter(prefix="/v1/server", tags=["operations"], dependencies=[Depen
 def status(db: Database, who: Identity, response: Response):
     response.headers["Cache-Control"] = "no-store"
     now = int(time.time())
-    enabled = os.getenv("PPB_JOBS_ENABLED", "1") == "1" and bool(settings.rules_executable)
+    enabled = os.getenv("PPB_JOBS_ENABLED", "1") == "1" and rules.configured
     rows = {row.name: row for row in db.scalars(select(ServerJob))}
     items = []
     for name, grace in [("backup", 90000), ("expiry", 300), ("prices", 93600)]:
@@ -49,6 +50,7 @@ def status(db: Database, who: Identity, response: Response):
         "jobs": items,
         "backup_retention": settings.backup_keep,
         "token_policy": "client_report_trusted",
+        "rules_backend": rules.backend,
         "latency_worker_recent": summary(),
         "server_time": now,
     }
