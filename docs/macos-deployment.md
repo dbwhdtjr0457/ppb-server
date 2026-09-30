@@ -69,6 +69,8 @@ total. Never infer missing historical statistics from current inventory.
 
 Automatic backups are verified SQLite snapshots on the same disk. Replicate
 snapshots to a separate, private backup bucket, never the artwork CDN bucket.
+The verified upload/download/restore command is documented in
+[offsite-backups.md](offsite-backups.md).
 Unattended backup credentials must outlive an interactive SSO session and be
 restricted to that bucket; an expired interactive SSO profile is not a working
 unattended backup configuration. Monitor the age of the last successful copy.
