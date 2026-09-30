@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from dataclasses import replace
 from uuid import uuid4
 
 import pytest
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
+from app import admin, auth_api
 from app.auth_service import digest, hasher, issue_link_code, reset_password
 from app.database import Base, get_db, make_engine
 from app.game_api import get_rules
@@ -119,6 +121,33 @@ def test_wrong_password_unknown_email_and_rate_limit(auth):
     assert int(replies[-1].headers["retry-after"]) > 0
 
 
+def test_link_only_registration_accepts_operator_invites_but_never_creates_without_code(
+    auth, monkeypatch
+):
+    client, sessions = auth
+    monkeypatch.setattr(
+        auth_api, "settings", replace(auth_api.settings, registration_mode="link-code-only")
+    )
+    monkeypatch.setattr(admin, "SessionLocal", sessions)
+    monkeypatch.setattr(admin, "rules", Rules())
+    response = client.post("/auth/register", json=credentials())
+    assert response.status_code == 403
+    assert response.json()["detail"] == "registration_requires_link_code"
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(Account)) == 0
+    invitation = admin.create_invite()
+    response = client.post("/auth/register", json=credentials(link_code=invitation["link_code"]))
+    assert response.status_code == 201
+    assert response.json()["account_id"] == invitation["account_id"]
+    reused = client.post(
+        "/auth/register",
+        json=credentials(email="second@example.com", link_code=invitation["link_code"]),
+    )
+    assert reused.status_code == 409
+    # The signup gate must not interfere with ordinary account login.
+    assert client.post("/auth/login", json=credentials()).status_code == 200
+
+
 def test_logout_expiry_and_revocation(auth):
     client, sessions = auth
     first = registered(client)
@@ -213,7 +242,8 @@ def test_password_length_boundaries_register_login_change_and_reset(auth, passwo
     assert client.post("/auth/login", json=credentials(password=password)).status_code == 200
     for invalid in ("1234567", "x" * 129):
         response = client.post(
-            "/auth/change-password", headers=headers(user),
+            "/auth/change-password",
+            headers=headers(user),
             json={"current_password": password, "new_password": invalid},
         )
         assert response.status_code == 422
@@ -221,7 +251,8 @@ def test_password_length_boundaries_register_login_change_and_reset(auth, passwo
         with sessions() as db, pytest.raises(ValueError):
             reset_password(db, user["email"], invalid)
     changed = client.post(
-        "/auth/change-password", headers=headers(user),
+        "/auth/change-password",
+        headers=headers(user),
         json={"current_password": password, "new_password": password},
     )
     assert changed.status_code == 204

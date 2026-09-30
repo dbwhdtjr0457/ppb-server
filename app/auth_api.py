@@ -13,6 +13,7 @@ from app.auth_service import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
     Principal,
+    client_address,
     create_session,
     digest,
     gateway,
@@ -24,6 +25,7 @@ from app.auth_service import (
     valid_password,
     verify_password,
 )
+from app.config import settings
 from app.database import get_db
 from app.game_api import get_rules
 from app.game_service import balance, initial_state
@@ -67,7 +69,9 @@ class ChangePassword(BaseModel):
 def register(
     payload: Register, request: Request, response: Response, db: Database, rules=Depends(get_rules)
 ):
-    rate_limit(db, payload.email, request.client.host if request.client else "unknown")
+    rate_limit(db, payload.email, client_address(request))
+    if settings.registration_mode == "link-code-only" and payload.link_code is None:
+        raise HTTPException(403, "registration_requires_link_code")
     encoded = hasher.hash(payload.password.get_secret_value())
     db.execute(text("BEGIN IMMEDIATE"))
     try:
@@ -111,7 +115,7 @@ def register(
 
 @router.post("/login")
 def login(payload: Login, request: Request, response: Response, db: Database):
-    rate_limit(db, payload.email, request.client.host if request.client else "unknown")
+    rate_limit(db, payload.email, client_address(request))
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         user = db.scalar(select(PasswordIdentity).where(PasswordIdentity.email == payload.email))
@@ -165,7 +169,7 @@ def logout_all(db: Database, who: Identity):
 
 @router.post("/change-password", status_code=204)
 def change_password(payload: ChangePassword, db: Database, who: Identity, request: Request):
-    rate_limit(db, who.account_id, request.client.host if request.client else "unknown")
+    rate_limit(db, who.account_id, client_address(request))
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         require_session(db, who)

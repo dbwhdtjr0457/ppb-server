@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.account_api import router as account_router
 from app.auth_api import router as auth_router
+from app.auth_service import diagnostics_allowed
+from app.config import settings
 from app.database import get_db
 from app.game_api import router as game_router
 from app.insights_api import router as insights_router
@@ -26,6 +28,19 @@ app.include_router(online_router)
 app.include_router(operations_router)
 app.include_router(opening_jobs_router)
 app.middleware("http")(record_requests)
+
+
+@app.middleware("http")
+async def private_diagnostics(request, call_next):
+    if (
+        settings.private_diagnostics
+        and request.url.path
+        in {"/ready", "/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"}
+        and not diagnostics_allowed(request)
+    ):
+        return JSONResponse(status_code=404, content={"detail": "Not Found"})
+    return await call_next(request)
+
 
 DbSession = Annotated[Session, Depends(get_db)]
 

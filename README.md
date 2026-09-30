@@ -5,6 +5,9 @@ uv + FastAPI + SQLAlchemy + SQLite + Alembic 기반 PPB 계정별 자원 서버�
 천장, 판형, 가격, 쿠폰, 도감, 오리파 규칙을 그대로 재사용합니다.
 아직 Python만으로 Linux에 배포할 수 있는 버전은 아닙니다.
 
+맥북 상시 실행, Cloudflare Tunnel, 고정 규칙 바이너리와 데이터 이전 운영 절차는
+[macOS 배포 안내](docs/macos-deployment.md)를 따릅니다.
+
 ## 시작하기
 
 ```bash
@@ -259,9 +262,9 @@ uv run --env-file .env python -m app.admin reconcile --apply
 ```bash
 uv run --env-file .env python -m app.admin backup /absolute/path/ppb-backup.sqlite3
 # 기본은 검사만 수행 (dry-run)
-uv run --env-file .env python -m app.admin import-save --account NEW_UUID --file /path/game-state.json
+uv run --env-file .env python -m app.admin import-save --account NEW_UUID --file /path/game-state.json --source-format legacy-local-v1
 # 검사 후에만 --apply 추가
-uv run --env-file .env python -m app.admin import-save --account NEW_UUID --file /path/game-state.json --apply
+uv run --env-file .env python -m app.admin import-save --account NEW_UUID --file /path/game-state.json --source-format legacy-local-v1 --apply
 # 기존/가져온 UUID 계정에 이메일 로그인을 연결: 출력된 코드를 앱 가입 화면에 입력
 uv run --env-file .env python -m app.admin issue-link-code --account EXISTING_UUID
 ```
@@ -269,6 +272,12 @@ uv run --env-file .env python -m app.admin issue-link-code --account EXISTING_UU
 연결 코드는 10분간 한 번만 유효하며 새로 발급하면 이전 코드는 무효화됩니다.
 가입 시 기존 잔액·카드·revision·기기별 적립 기록은 그대로 유지합니다.
 UUID 또는 이메일만으로 기존 계정을 가져오거나 자동 병합하지 않습니다.
+
+`legacy-local-v1` 가져오기는 보너스 지급 ID를 온라인 SHA-256 형식으로 한 번 변환하고
+원본/정규화 파일 해시를 기록합니다. 동일 세이브를 다른 UUID로 다시 가져올 수 없으며,
+정규화가 카드·팩·재화·보상 이력을 잃으면 저장 전에 중단합니다. 온라인 캐시는 입력하지 마세요.
+운영 서버는 `PPB_REGISTRATION_MODE=link-code-only`로 코드 없는 가입을 제한합니다.
+새 사용자는 운영자의 `python -m app.admin create-invite`로 발급한 코드를 사용합니다.
 
 비밀번호를 잊었을 때는 미리 발급해 보관한 복구 코드로 앱에서 재설정할 수 있습니다.
 복구 코드가 없다면 서버 운영자가 아래 명령으로 재설정합니다. 비밀번호는

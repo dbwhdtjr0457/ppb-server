@@ -4,6 +4,7 @@ are stored only as SHA-256 digests. Database access is the operator boundary.
 
 import hashlib
 import hmac
+import ipaddress
 import secrets
 import time
 from typing import Annotated, NamedTuple
@@ -12,7 +13,7 @@ from uuid import UUID
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError
 from email_validator import EmailNotValidError, validate_email
-from fastapi import Depends, Header, HTTPException
+from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import delete, select, text, update
 from sqlalchemy.orm import Session
 
@@ -70,6 +71,34 @@ class Principal(NamedTuple):
 def gateway(x_ppb_gateway_key: Annotated[str, Header()] = ""):
     if settings.gateway_key and not hmac.compare_digest(settings.gateway_key, x_ppb_gateway_key):
         raise HTTPException(403, "gateway_access_denied")
+
+
+def local_peer(request: Request) -> bool:
+    try:
+        return request.client is not None and ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        return False
+
+
+def client_address(request: Request) -> str:
+    """Trust only the explicitly enabled, loopback Cloudflare connector, never XFF."""
+    address = request.client.host if request.client else "unknown"
+    if settings.trust_cloudflare_proxy and local_peer(request):
+        forwarded = request.headers.get("cf-connecting-ip")
+        if forwarded is not None:
+            try:
+                return str(ipaddress.ip_address(forwarded))
+            except ValueError as error:
+                raise HTTPException(400, "invalid_proxy_address") from error
+    return address
+
+
+def diagnostics_allowed(request: Request) -> bool:
+    # A connector is also loopback: forwarding headers distinguish it from local probes.
+    return local_peer(request) and not any(
+        header in request.headers
+        for header in ("cf-connecting-ip", "cf-ray", "forwarded", "x-forwarded-for")
+    )
 
 
 def require_session(db: Session, who: Principal) -> LoginSession:
@@ -165,27 +194,33 @@ def create_session(db: Session, account_id: str, device_id: str, email: str, nam
     }
 
 
+def new_link_code(db: Session, account_id: str) -> str:
+    """Stage a code inside the caller's write transaction; never commit independently."""
+    db.execute(
+        update(AccountLinkCode)
+        .where(AccountLinkCode.account_id == account_id)
+        .values(consumed=True)
+    )
+    code = secrets.token_urlsafe(32)
+    db.add(
+        AccountLinkCode(
+            code_hash=digest(code),
+            account_id=account_id,
+            expires_at=int(time.time()) + 600,
+            consumed=False,
+        )
+    )
+    db.add(AuthEvent(account_id=account_id, action="link_code_issued"))
+    return code
+
+
 def issue_link_code(db: Session, account_id: str) -> str:
     account_id = str(UUID(account_id))
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         if db.get(Account, account_id) is None or db.get(PasswordIdentity, account_id) is not None:
             raise ValueError("An existing unlinked account is required")
-        db.execute(
-            update(AccountLinkCode)
-            .where(AccountLinkCode.account_id == account_id)
-            .values(consumed=True)
-        )
-        code = secrets.token_urlsafe(32)
-        db.add(
-            AccountLinkCode(
-                code_hash=digest(code),
-                account_id=account_id,
-                expires_at=int(time.time()) + 600,
-                consumed=False,
-            )
-        )
-        db.add(AuthEvent(account_id=account_id, action="link_code_issued"))
+        code = new_link_code(db, account_id)
         db.commit()
         return code
     except BaseException:

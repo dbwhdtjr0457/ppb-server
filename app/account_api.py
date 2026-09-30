@@ -13,6 +13,7 @@ from app.auth_api import Database, Identity
 from app.auth_service import (
     PASSWORD_MAX_LENGTH,
     PASSWORD_MIN_LENGTH,
+    client_address,
     digest,
     gateway,
     hasher,
@@ -67,7 +68,7 @@ def token_policy(db: Database, who: Identity, response: Response):
 
 @router.post("/token-policy")
 def set_token_policy(payload: SetTokenPolicy, db: Database, who: Identity, request: Request):
-    rate_limit(db, who.account_id, request.client.host if request.client else "unknown")
+    rate_limit(db, who.account_id, client_address(request))
     db.execute(text("BEGIN IMMEDIATE"))
     authenticate_password(db, who, payload)
     target = str(payload.collector_device_id) if payload.collector_device_id else None
@@ -177,7 +178,7 @@ def recovery_status(db: Database, who: Identity, response: Response):
 def issue_recovery(
     payload: ConfirmPassword, db: Database, who: Identity, request: Request, response: Response
 ):
-    rate_limit(db, who.account_id, request.client.host if request.client else "unknown")
+    rate_limit(db, who.account_id, client_address(request))
     db.execute(text("BEGIN IMMEDIATE"))
     authenticate_password(db, who, payload)
     value = secrets.token_urlsafe(32)
@@ -195,7 +196,7 @@ def issue_recovery(
 
 @router.post("/recover", status_code=204)
 def recover(payload: Recover, db: Database, request: Request):
-    rate_limit(db, payload.email, request.client.host if request.client else "unknown")
+    rate_limit(db, payload.email, client_address(request))
     encoded = hasher.hash(payload.new_password.get_secret_value())
     db.execute(text("BEGIN IMMEDIATE"))
     user = db.scalar(select(PasswordIdentity).where(PasswordIdentity.email == payload.email))

@@ -5,20 +5,100 @@ import getpass
 import hashlib
 import json
 import sqlite3
+from copy import deepcopy
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, text
 from sqlalchemy.engine import make_url
 
+from app import inventory
 from app.config import settings
 from app.database import SessionLocal
-from app.game_service import balance
+from app.game_service import balance, initial_state
 from app.models import Account, GameEvent, Inventory
 from app.rules import rules
 
+LEGACY_SAVE_FORMAT = "legacy-local-v1"
+BONUS_INSTANCE_FORMAT = "sha256-v1"
 
-def import_save(account_id: str, source: Path, apply: bool):
+
+def snapshot_summary(state):
+    return {
+        "balance": balance(state),
+        "card_kinds": len([count for count in state.get("cards", {}).values() if count > 0]),
+        "cards": sum(state.get("cards", {}).values()),
+        "printing_kinds": len(inventory.counts(state)),
+        "printings": sum(inventory.counts(state).values()),
+        "packs": sum(state.get("packs", {}).values()),
+        "packs_opened": state.get("packsOpened", 0),
+        "opening_history_entries": len(state.get("openingHistory", [])),
+        "claimed_dex": len(state.get("claimedDex") or state.get("completedDex", [])),
+        "coupons": len(state.get("coupons", [])),
+        "bonus_instances": sum(
+            len(values) for values in state.get("packGrantedInstances", {}).values()
+        ),
+    }
+
+
+def normalize_legacy_bonus(state):
+    """Only the explicit legacy import boundary hashes IDs, never normal inspect/reconcile."""
+    grants = state.get("packGrantedInstances", {})
+    if not isinstance(grants, dict) or any(
+        not isinstance(values, list) or any(not isinstance(value, str) for value in values)
+        for values in grants.values()
+    ):
+        raise ValueError("Invalid bonus instance history")
+    state["packGrantedInstances"] = {
+        key: [hashlib.sha256(value.encode()).hexdigest() if value else "" for value in values]
+        for key, values in grants.items()
+    }
+
+
+def verify_import_preserves_resources(before, after):
+    for key in (
+        "usedSinceInstall",
+        "spentTokens",
+        "refundedTokens",
+        "perkTokens",
+        "marketEarnedTokens",
+        "marketSpentTokens",
+        "cards",
+        "packs",
+        "packsOpened",
+        "cardsDisenchanted",
+        "packPity",
+        "coupons",
+        "packGrantTier",
+        "packGrantedInstances",
+        "packGrantSeeded",
+        "grantedGifts",
+        "oripa",
+        "openingHistory",
+        "openingMode",
+        "favoriteCardID",
+        "title",
+        "language",
+    ):
+        if key in before and before[key] != after.get(key):
+            raise ValueError(f"Rules normalization changed protected save field: {key}")
+    claimed = before.get("claimedDex") or before.get("completedDex", [])
+    if claimed and claimed != after.get("claimedDex"):
+        raise ValueError("Rules normalization changed claimed dex rewards")
+    if any(
+        after.get("printingCards", {}).get(key, 0) < count
+        for key, count in before.get("printingCards", {}).items()
+    ):
+        raise ValueError("Rules normalization lost an existing printing")
+    if not inventory.normalized(after):
+        raise ValueError("Rules normalization did not preserve card/printing totals")
+
+
+def import_save(account_id: str, source: Path, apply: bool, *, source_format: str):
+    if source_format != LEGACY_SAVE_FORMAT:
+        raise ValueError(
+            "Only legacy-local-v1 source saves are supported; never import online caches"
+        )
     account_id = str(UUID(account_id))
     data = source.read_bytes()
     if len(data) > 16 * 1024 * 1024:
@@ -26,15 +106,52 @@ def import_save(account_id: str, source: Path, apply: bool):
     state = json.loads(data)
     if not isinstance(state, dict) or "usedSinceInstall" not in state or "cards" not in state:
         raise ValueError("Provide raw game-state.json, not an export envelope")
+    source_digest = hashlib.sha256(data).hexdigest()
+    canonical_digest = hashlib.sha256(
+        json.dumps(state, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+    ).hexdigest()
+    before = snapshot_summary(state)
+    normalize_legacy_bonus(state)
+    prepared = deepcopy(state)
     state, _, version = rules.apply(state, {"kind": "inspect"})
+    verify_import_preserves_resources(prepared, state)
     amount = balance(state)
+    report = {
+        "applied": apply,
+        "balance": amount,
+        "card_kinds": len(state.get("cards", {})),
+        "source_sha256": source_digest,
+        "source_format": source_format,
+        "bonus_instance_format": BONUS_INSTANCE_FORMAT,
+        "rules_version": version,
+        "before": before,
+        "after": snapshot_summary(state),
+        "cards_preserved": True,
+        "changed_fields": sorted(
+            key for key in prepared.keys() | state.keys() if prepared.get(key) != state.get(key)
+        ),
+        "historical_server_statistics_imported": False,
+    }
     with SessionLocal() as db:
         db.execute(text("BEGIN IMMEDIATE"))
         if db.get(Account, account_id) is not None:
             raise ValueError("Account already exists; import never merges or overwrites it")
+        # The same write lock covers lookup and insert across processes. Include older imports,
+        # whose only import marker was the original file fingerprint.
+        previous = db.scalar(
+            select(GameEvent.id).where(
+                GameEvent.command == "operator_import",
+                (GameEvent.fingerprint == source_digest)
+                | (GameEvent.payload["canonical_sha256"].as_string() == canonical_digest),
+            )
+        )
+        if previous is not None:
+            raise ValueError("This save was already imported; a different UUID cannot duplicate it")
         if apply:
-            db.add(Account(id=account_id, revision=1, balance=amount, state=state))
+            account = Account(id=account_id, revision=1, balance=amount, state=state)
+            db.add(account)
             db.flush()
+            inventory.sync(db, account)
             db.add(
                 GameEvent(
                     account_id=account_id,
@@ -42,9 +159,15 @@ def import_save(account_id: str, source: Path, apply: bool):
                     request_id=str(uuid4()),
                     revision=1,
                     command="operator_import",
-                    fingerprint=hashlib.sha256(data).hexdigest(),
-                    payload={"sha256": hashlib.sha256(data).hexdigest()},
-                    result={},
+                    fingerprint=source_digest,
+                    payload={
+                        "sha256": source_digest,
+                        "canonical_sha256": canonical_digest,
+                        "source_format": source_format,
+                        "bonus_instance_format": BONUS_INSTANCE_FORMAT,
+                        "import_version": 1,
+                    },
+                    result=report,
                     balance_before=0,
                     balance_after=amount,
                     rules_version=version,
@@ -53,7 +176,24 @@ def import_save(account_id: str, source: Path, apply: bool):
             db.commit()
         else:
             db.rollback()
-    return {"applied": apply, "balance": amount, "card_kinds": len(state.get("cards", {}))}
+    return report
+
+
+def create_invite():
+    """Create a fresh, unclaimed account and 10-minute signup code in one transaction."""
+    from app.auth_service import new_link_code
+
+    account_id = str(uuid4())
+    state, _, _ = rules.apply(initial_state(), {"kind": "initialize"})
+    with SessionLocal() as db:
+        db.execute(text("BEGIN IMMEDIATE"))
+        account = Account(id=account_id, revision=0, balance=balance(state), state=state)
+        db.add(account)
+        db.flush()
+        inventory.sync(db, account)
+        code = new_link_code(db, account_id)
+        db.commit()
+    return {"account_id": account_id, "link_code": code, "expires_in_seconds": 600}
 
 
 def backup(destination: Path):
@@ -117,6 +257,7 @@ def main():
     importer = sub.add_parser("import-save")
     importer.add_argument("--account", required=True)
     importer.add_argument("--file", type=Path, required=True)
+    importer.add_argument("--source-format", required=True, choices=[LEGACY_SAVE_FORMAT])
     importer.add_argument("--apply", action="store_true", help="Default is validation/dry-run only")
     saver = sub.add_parser("backup")
     saver.add_argument("destination", type=Path)
@@ -124,6 +265,7 @@ def main():
         "issue-link-code", help="One-time 10 minute code for an unlinked UUID account"
     )
     linker.add_argument("--account", required=True)
+    sub.add_parser("create-invite", help="Create a new account and one-time signup code")
     reset = sub.add_parser("reset-password", help="Local operator reset; revokes every session")
     reset.add_argument("--email", required=True)
     projection = sub.add_parser(
@@ -132,7 +274,11 @@ def main():
     projection.add_argument("--apply", action="store_true")
     args = parser.parse_args()
     if args.action == "import-save":
-        print(json.dumps(import_save(args.account, args.file, args.apply)))
+        print(
+            json.dumps(
+                import_save(args.account, args.file, args.apply, source_format=args.source_format)
+            )
+        )
     elif args.action == "backup":
         backup(args.destination)
         print("Database backup completed (including committed WAL transactions).")
@@ -143,6 +289,8 @@ def main():
             print(issue_link_code(db, args.account))
     elif args.action == "reconcile":
         print(json.dumps(reconcile(args.apply)))
+    elif args.action == "create-invite":
+        print(json.dumps(create_invite()))
     else:
         from app.auth_service import reset_password
 
