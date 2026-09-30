@@ -36,13 +36,10 @@ def test_health(client: TestClient) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_create_and_list_item(client: TestClient) -> None:
-    create_response = client.post("/items", json={"name": "Sample item"})
+def test_scaffold_is_not_public_inventory(client: TestClient) -> None:
+    assert client.post("/items", json={"name": "Sample item"}).status_code == 404
+    assert client.get("/items").status_code == 404
 
-    assert create_response.status_code == 201
-    assert create_response.json() == {"id": 1, "name": "Sample item"}
 
-    list_response = client.get("/items")
-
-    assert list_response.status_code == 200
-    assert list_response.json() == [{"id": 1, "name": "Sample item"}]
+def test_missing_migrations_not_ready(client: TestClient) -> None:
+    assert client.get("/ready").status_code == 503
