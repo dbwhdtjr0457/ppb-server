@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.account_api import router as account_router
 from app.auth_api import router as auth_router
@@ -14,7 +15,7 @@ from app.database import get_db
 from app.game_api import router as game_router
 from app.insights_api import router as insights_router
 from app.jobs import lifespan
-from app.observability import record_requests
+from app.observability import record_requests, server_error
 from app.online_api import router as online_router
 from app.opening_jobs import router as opening_jobs_router
 from app.operations_api import router as operations_router
@@ -28,6 +29,7 @@ app.include_router(online_router)
 app.include_router(operations_router)
 app.include_router(opening_jobs_router)
 app.middleware("http")(record_requests)
+app.add_exception_handler(StarletteHTTPException, server_error)
 
 
 @app.middleware("http")
