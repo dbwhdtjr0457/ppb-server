@@ -17,8 +17,10 @@ import logging
 import os
 import re
 import time
+import traceback
 from contextvars import ContextVar
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi.exception_handlers import http_exception_handler
@@ -48,7 +50,31 @@ _CLIENT_REQUEST_ID = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 
 def request_id_for(request) -> str:
     supplied = request.headers.get("X-Request-ID", "")
-    return supplied if _CLIENT_REQUEST_ID.match(supplied) else str(uuid4())
+    return supplied if _CLIENT_REQUEST_ID.fullmatch(supplied) else str(uuid4())
+
+
+def error_trace(error):
+    """Keep diagnostic locations, never exception text/SQL parameters or locals."""
+    if error is None:
+        return None
+    entries, seen = [], set()
+    while error is not None and id(error) not in seen and len(entries) < 8:
+        seen.add(id(error))
+        entries.append(
+            {
+                "type": type(error).__name__,
+                "frames": [
+                    {
+                        "file": Path(frame.filename).name,
+                        "line": frame.lineno,
+                        "function": frame.name,
+                    }
+                    for frame in traceback.extract_tb(error.__traceback__)[-20:]
+                ],
+            }
+        )
+        error = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
+    return entries
 
 
 async def record_requests(request, call_next):
@@ -68,9 +94,9 @@ async def record_requests(request, call_next):
                         "method": request.method,
                         "route": getattr(route, "path", "unmatched"),
                         "error": type(error).__name__,
+                        "traceback": error_trace(error),
                     }
                 ),
-                exc_info=error,
             )
             response = JSONResponse(
                 status_code=500,
@@ -111,8 +137,8 @@ async def server_error(request, error):
                     "status": error.status_code,
                     "detail": str(error.detail),
                     "cause": type(cause).__name__ if cause else None,
+                    "traceback": error_trace(cause),
                 }
             ),
-            exc_info=cause,
         )
     return await http_exception_handler(request, error)

@@ -63,10 +63,10 @@ class SwiftRules:
         if result.returncode != 0:
             # Exit 2 is a rejected command; anything else is a crash worth keeping.
             logger.error(
-                "rules engine exited %s (request %s): %s",
+                "rules engine exited %s (request %s, stderr bytes %s)",
                 result.returncode,
                 current_request_id.get(),
-                result.stderr.decode(errors="replace")[-400:].strip(),
+                len(result.stderr),
             )
             raise HTTPException(503, "rules_engine_failed")
         try:

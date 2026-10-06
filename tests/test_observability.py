@@ -1,3 +1,4 @@
+import json
 import logging
 
 from fastapi import FastAPI
@@ -69,8 +70,10 @@ def test_unhandled_error_returns_request_id_and_logs_traceback() -> None:
     assert len(failures) == 1
     assert "trace-0001" in failures[0].getMessage()
     assert '"route": "/boom"' in failures[0].getMessage()
-    assert failures[0].exc_info is not None
-    assert "database exploded" in str(failures[0].exc_info[1])
+    failure = json.loads(failures[0].getMessage())
+    assert failure["traceback"][0]["type"] == "RuntimeError"
+    assert any(frame["function"] == "boom" for frame in failure["traceback"][0]["frames"])
+    assert failures[0].exc_info is None
     summaries = [record for record in handler.records if record.levelno == logging.WARNING]
     assert len(summaries) == 1
     assert '"status": 500' in summaries[0].getMessage()
@@ -114,4 +117,31 @@ def test_deliberate_server_error_logs_detail_and_cause() -> None:
     assert "trace-0002" in message
     assert "rules_engine_timeout" in message
     assert "TimeoutError" in message
-    assert failures[0].exc_info is not None
+    assert failures[0].exc_info is None
+    assert json.loads(message)["traceback"][0]["type"] == "TimeoutError"
+
+
+def test_database_error_trace_excludes_account_state_and_credentials():
+    from sqlalchemy.exc import OperationalError
+
+    app = build_app()
+    private = "private-wallet-and-session-marker"
+
+    @app.get("/database-error")
+    def failure():
+        raise OperationalError("UPDATE accounts SET state=?", (private,), RuntimeError(private))
+
+    handler = capture()
+    try:
+        response = TestClient(app).get("/database-error")
+    finally:
+        logger.removeHandler(handler)
+    assert response.status_code == 500
+    logs = "\n".join(logging.Formatter().format(record) for record in handler.records)
+    assert private not in logs and "UPDATE accounts" not in logs
+    assert "OperationalError" in logs and '"function": "failure"' in logs
+
+
+def test_request_id_with_final_newline_is_replaced():
+    response = TestClient(build_app()).get("/ok", headers={"X-Request-ID": "trace-0001\n"})
+    assert len(response.headers["X-Request-ID"]) == 36
