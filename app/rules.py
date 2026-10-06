@@ -12,6 +12,7 @@ from pathlib import Path
 from fastapi import HTTPException
 
 from app.config import settings
+from app.observability import current_request_id, logger
 from app.performance import timed
 
 
@@ -60,6 +61,13 @@ class SwiftRules:
         if result.returncode == 2:
             raise HTTPException(409, "game_precondition_failed")
         if result.returncode != 0:
+            # Exit 2 is a rejected command; anything else is a crash worth keeping.
+            logger.error(
+                "rules engine exited %s (request %s, stderr bytes %s)",
+                result.returncode,
+                current_request_id.get(),
+                len(result.stderr),
+            )
             raise HTTPException(503, "rules_engine_failed")
         try:
             output = json.loads(result.stdout)

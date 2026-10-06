@@ -8,6 +8,7 @@ The generated files are public static assets; no installed wallet is accessed.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import shutil
 import subprocess
@@ -37,6 +38,20 @@ def main() -> None:
         timeout=180,
         env=environment,
     )
+    # The rules data carries no Korean names; market and inventory search need them.
+    exported = subprocess.run(
+        [str(args.executable.resolve()), "--export-online-catalogue"],
+        check=True,
+        capture_output=True,
+        timeout=180,
+        env=environment,
+    )
+    catalogue = json.loads(exported.stdout)
+    names = {entry["id"]: entry["name_ko"] for entry in catalogue if entry.get("name_ko")}
+    (args.output / "card-names-ko.json").write_text(
+        json.dumps(names, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
     price_tools = args.output / "price-tools"
     price_tools.mkdir(parents=True, exist_ok=True)
     for name in (
@@ -49,7 +64,10 @@ def main() -> None:
     from app.native_data import load
 
     data = load(args.output)
-    print(f"Exported {len(data['cards'])} cards, {len(data['sets'])} sets: {data['rules_version']}")
+    print(
+        f"Exported {len(data['cards'])} cards ({len(names)} Korean names), "
+        f"{len(data['sets'])} sets: {data['rules_version']}"
+    )
 
 
 if __name__ == "__main__":
