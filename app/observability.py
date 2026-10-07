@@ -142,3 +142,39 @@ async def server_error(request, error):
             ),
         )
     return await http_exception_handler(request, error)
+
+
+def database_locked(error) -> bool:
+    """SQLite's writer-lock timeout. Only the driver message is inspected, never logged."""
+    original = getattr(error, "orig", None) or error
+    return "locked" in str(original).lower()
+
+
+async def database_error(request, error):
+    """Answer a writer-lock timeout as a retryable 503 instead of a bare 500.
+
+    Game commands already turn `OperationalError` into 503 retry codes, but reads that
+    take the writer lock (stats, expiry during listings or trades, profile provisioning)
+    failed with 500 once another writer held SQLite for longer than `busy_timeout`.
+    """
+    route = request.scope.get("route")
+    correlation = current_request_id.get()
+    locked = database_locked(error)
+    record = {
+        "request_id": correlation,
+        "method": request.method,
+        "route": getattr(route, "path", "unmatched"),
+        "error": type(error).__name__,
+        "traceback": error_trace(error),
+    }
+    if locked:
+        logger.warning(json.dumps({**record, "detail": "database_busy_retry"}))
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "database_busy_retry", "request_id": correlation},
+            headers={"Retry-After": "2"},
+        )
+    logger.error(json.dumps(record))
+    return JSONResponse(
+        status_code=500, content={"detail": "internal_error", "request_id": correlation}
+    )
