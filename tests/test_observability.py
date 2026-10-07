@@ -145,3 +145,37 @@ def test_database_error_trace_excludes_account_state_and_credentials():
 def test_request_id_with_final_newline_is_replaced():
     response = TestClient(build_app()).get("/ok", headers={"X-Request-ID": "trace-0001\n"})
     assert len(response.headers["X-Request-ID"]) == 36
+
+
+def test_database_lock_timeout_is_a_retryable_503_without_sql_in_logs():
+    from sqlalchemy.exc import OperationalError
+
+    from app.observability import database_error
+
+    app = build_app()
+    app.add_exception_handler(OperationalError, database_error)
+    private = "private-wallet-and-session-marker"
+
+    @app.get("/locked")
+    def locked():
+        raise OperationalError(
+            "UPDATE accounts SET state=?", (private,), Exception("database is locked")
+        )
+
+    @app.get("/broken")
+    def broken():
+        raise OperationalError("SELECT missing", (private,), Exception("no such column: missing"))
+
+    handler = capture()
+    try:
+        client = TestClient(app)
+        busy = client.get("/locked", headers={"X-Request-ID": "trace-0003"})
+        other = client.get("/broken")
+    finally:
+        logger.removeHandler(handler)
+    assert busy.status_code == 503
+    assert busy.json() == {"detail": "database_busy_retry", "request_id": "trace-0003"}
+    assert busy.headers["Retry-After"] == "2"
+    assert other.status_code == 500 and other.json()["detail"] == "internal_error"
+    logs = "\n".join(logging.Formatter().format(record) for record in handler.records)
+    assert private not in logs and "UPDATE accounts" not in logs and "no such column" not in logs
