@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -28,6 +29,14 @@ app.include_router(insights_router)
 app.include_router(online_router)
 app.include_router(operations_router)
 app.include_router(opening_jobs_router)
+# Every command and full state reply carries the whole account state (about 1.3 MB
+# for a long-time player, mostly opening history), and the 7-8 MB price snapshot
+# goes out on each price change. Over a home uplink and tunnel that dominated
+# response time; JSON compresses to roughly 7% for a few milliseconds of CPU.
+# Registered first so it sits innermost: the outer http middlewares stream bodies
+# in chunks, which GZipMiddleware would treat as streaming and compress even tiny
+# replies regardless of minimum_size.
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 app.middleware("http")(record_requests)
 app.add_exception_handler(StarletteHTTPException, server_error)
 
