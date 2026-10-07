@@ -296,41 +296,68 @@ def listings(
         if sort == "price"
         else query.order_by(MarketListing.created_at.desc(), MarketListing.id)
     )
+    needle = "".join(q.casefold().split())
     items = []
+    ranked = []
     matched = 0
     for row, seller in db.execute(query.execution_options(yield_per=100)):
         card = catalogue.describe(row.printing, rules)
+        rank = search_rank(needle, card, row.printing)
         if (
-            q.casefold() not in f"{card['name']} {card['name_ko']} {row.printing}".casefold()
+            rank is None
             or (set_id and card.get("set_id") != set_id)
             or (tier and card.get("tier") != tier)
             or (finish and card.get("finish") != finish)
         ):
             continue
+        item = {
+            **card,
+            "id": row.id,
+            "version": row.version,
+            "quantity": row.quantity,
+            "unit_tokens": row.unit_tokens,
+            "status": row.status,
+            "expires_at": row.expires_at,
+            "mine": row.seller == who.account_id,
+            "nickname": seller.nickname if seller else "트레이너",
+            "public_id": seller.public_id if seller else "",
+        }
+        if needle:
+            # Ranking needs every match before paging, so a search cannot stop early.
+            ranked.append((rank, len(ranked), item))
+            continue
         matched += 1
         if matched <= offset:
             continue
-        items.append(
-            {
-                **card,
-                "id": row.id,
-                "version": row.version,
-                "quantity": row.quantity,
-                "unit_tokens": row.unit_tokens,
-                "status": row.status,
-                "expires_at": row.expires_at,
-                "mine": row.seller == who.account_id,
-                "nickname": seller.nickname if seller else "트레이너",
-                "public_id": seller.public_id if seller else "",
-            }
-        )
+        items.append(item)
         if len(items) > limit:
             break
+    if needle:
+        ranked.sort(key=lambda entry: entry[:2])
+        items = [item for _, _, item in ranked[offset : offset + limit + 1]]
     return {
         "items": items[:limit],
         "revision": db.get(Account, who.account_id).revision,
         "next_offset": offset + limit if len(items) > limit else None,
     }
+
+
+def search_rank(needle, card, printing):
+    """0 for an exact name, 1 for a name prefix, 2 for any other match, None for no match.
+
+    A plain substring test listed Mewtwo and Mew Duo before Mew when searching "mew"; the
+    selected sort (newest or price) still orders listings within each rank.
+    """
+    if not needle:
+        return 0
+    names = ["".join(str(card.get(key) or "").casefold().split()) for key in ("name", "name_ko")]
+    if needle in names:
+        return 0
+    if any(name.startswith(needle) for name in names):
+        return 1
+    if any(needle in name for name in names) or needle in printing.casefold():
+        return 2
+    return None
 
 
 @router.post("/profile")

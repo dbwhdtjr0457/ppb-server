@@ -467,3 +467,54 @@ def test_block_cancels_reserved_trade_and_prevents_market(online):
     with sessions() as db:
         assert db.get(CardTrade, offer.json()["result"]["id"]).status == "cancelled"
         assert list(db.scalars(select(Reservation))) == []
+
+
+def test_market_search_lists_exact_names_before_partial_matches(online, monkeypatch):
+    import time
+
+    client, sessions, a, b = online
+    monkeypatch.setattr(
+        Rules,
+        "catalogue",
+        {
+            "a-1": {"id": "a-1", "name": "Mewtwo", "name_ko": "뮤츠", "tier": "R", "set_id": "a"},
+            "a-2": {"id": "a-2", "name": "Mew", "name_ko": "뮤", "tier": "R", "set_id": "a"},
+        },
+        raising=False,
+    )
+    own(client, a)
+    own(client, b)
+    with sessions() as db:
+        # The exact match is older, so newest-first order alone would put it last.
+        for created, key in [(1, "a-2#holo"), (2, "a-1#holo")]:
+            db.add(
+                MarketListing(
+                    id=str(uuid4()),
+                    seller=a["account_id"],
+                    printing=key,
+                    quantity=1,
+                    unit_tokens=100,
+                    status="active",
+                    version=0,
+                    expires_at=int(time.time()) + 86400,
+                    created_at=created,
+                )
+            )
+        db.commit()
+
+    def listed(query):
+        return client.get("/v1/market/listings" + query, headers=headers(b)).json()
+
+    newest = listed("?sort=newest")["items"]
+    assert [item["printing"] for item in newest] == ["a-1#holo", "a-2#holo"]
+    assert [item["printing"] for item in listed("?q=뮤&sort=newest")["items"]] == [
+        "a-2#holo",
+        "a-1#holo",
+    ]
+    assert [item["printing"] for item in listed("?q=mew&sort=newest")["items"]] == [
+        "a-2#holo",
+        "a-1#holo",
+    ]
+    paged = listed("?q=mew&limit=1")
+    assert [item["printing"] for item in paged["items"]] == ["a-2#holo"]
+    assert paged["next_offset"] == 1
