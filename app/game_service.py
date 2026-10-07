@@ -56,8 +56,9 @@ def balance(state: dict) -> int:
     return result
 
 
-def snapshot(account: Account, db=None):
-    state = deepcopy(account.state)
+def public_state(state: dict) -> dict:
+    """The account state as clients see it (a copy)."""
+    state = deepcopy(state)
     # The remaining prize multiset is public, but the unopened envelope-to-card
     # mapping must stay server-side. Preserve opened positions for existing UI.
     box = state.get("oripa")
@@ -67,16 +68,96 @@ def snapshot(account: Account, db=None):
         positions = (i for i in range(len(box["cards"])) if i not in opened)
         for i, card in zip(positions, hidden, strict=True):
             box["cards"][i] = card
+    return state
+
+
+def state_digest(view: dict) -> str:
+    """Identifies a public state exactly. Clients compare it before applying a patch, which
+    also catches internal repairs that change state without advancing the revision."""
+    canonical = json.dumps(view, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+def snapshot(account: Account, db=None):
+    state = public_state(account.state)
     reply = {
         "account_id": account.id,
         "revision": account.revision,
         "balance": account.balance,
         "state": state,
+        "state_digest": state_digest(state),
     }
     if db is not None:
         reply["reserved"] = inventory.reserved(db, account.id)
         reply["available_printings"] = inventory.available(db, account)
     return reply
+
+
+def history_patch(old: list, new: list):
+    """The capped opening history only drops its oldest records and appends new ones.
+
+    Returns {"drop", "append"} or None when the change is not of that shape.
+    """
+    if not new:
+        return None
+    start = next((i for i, entry in enumerate(old) if entry.get("id") == new[0].get("id")), None)
+    if start is None:
+        return {"drop": len(old), "append": new}
+    kept = len(old) - start
+    if old[start:] != new[:kept]:
+        return None
+    return {"drop": start, "append": new[kept:]}
+
+
+def state_patch(before: dict, after: dict) -> dict:
+    """Top-level replacements, removals and an append/drop patch for the opening history.
+
+    A long-time player's state is about 1.3 MB and 97% of it is the 1,000-pack opening
+    history, yet a token report changes a few counters. Sending only what changed keeps
+    command replies small over a slow uplink.
+    """
+    patch = {"set": {}, "merge": {}, "remove": sorted(key for key in before if key not in after)}
+    for key, value in after.items():
+        if key == "openingHistory" or (key in before and before[key] == value):
+            continue
+        old_value = before.get(key)
+        if isinstance(old_value, dict) and isinstance(value, dict):
+            # Card counts and first-seen dates have thousands of entries; one pack
+            # changes a handful.
+            patch["merge"][key] = {
+                "set": {k: v for k, v in value.items() if k not in old_value or old_value[k] != v},
+                "remove": sorted(k for k in old_value if k not in value),
+            }
+        else:
+            patch["set"][key] = value
+    old, new = before.get("openingHistory"), after.get("openingHistory")
+    if old != new:
+        history = history_patch(old or [], new or []) if new is not None else None
+        if history is None:
+            if new is None:
+                patch["remove"].append("openingHistory")
+            else:
+                patch["set"]["openingHistory"] = new
+        else:
+            patch["history"] = history
+    return patch
+
+
+def snapshot_patch(account: Account, db, before_state: dict, base_revision: int):
+    before = public_state(before_state)
+    after = public_state(account.state)
+    return {
+        "account_id": account.id,
+        "revision": account.revision,
+        "balance": account.balance,
+        "base_revision": base_revision,
+        "base_digest": state_digest(before),
+        "state_digest": state_digest(after),
+        "reserved": inventory.reserved(db, account.id),
+        # available_printings (about 2,000 entries for a long-time player) is not read by the
+        # app, so patches leave it out; full snapshots keep it for compatibility.
+        **state_patch(before, after),
+    }
 
 
 def read_state(db: Session, account_id: str):
@@ -143,6 +224,7 @@ def execute(
     session_hash: str | None = None,
     after_apply=None,
     scope: str | None = None,
+    patch: bool = False,
 ):
     payload = request.command.model_dump(mode="json")
     # Include the device and revision: one idempotency key is one exact request.
@@ -322,12 +404,13 @@ def execute(
             # JSON columns need reassignment after the callback adds the durable job receipt.
             event.result = dict(result)
             flag_modified(event, "result")
-        response = {
-            "snapshot": snapshot(account, db),
-            "result": result,
-            "event_revision": account.revision,
-            "replayed": False,
-        }
+        response = {"result": result, "event_revision": account.revision, "replayed": False}
+        if patch and existed:
+            # Clients that understand patches apply this to the state they hold at
+            # base_revision and fall back to GET /v1/state when the base digest differs.
+            response["snapshot_patch"] = snapshot_patch(account, db, observed_state, revision)
+        else:
+            response["snapshot"] = snapshot(account, db)
         db.commit()
         return response
     except OperationalError as error:
