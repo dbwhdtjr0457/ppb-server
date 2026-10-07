@@ -52,9 +52,18 @@ def rule_version(who: Identity, rules=Depends(get_rules)):
 
 
 @router.post("/commands")
-def commands(payload: CommandRequest, db: Database, who: Identity, rules=Depends(get_rules)):
+def commands(
+    payload: CommandRequest,
+    db: Database,
+    who: Identity,
+    x_ppb_state_patch: Annotated[str | None, Header()] = None,
+    rules=Depends(get_rules),
+):
     expire(db)
-    return execute(db, who[0], who[1], payload, rules, session_hash=who.session_hash)
+    return execute(
+        db, who[0], who[1], payload, rules,
+        session_hash=who.session_hash, patch=x_ppb_state_patch == "1",
+    )
 
 
 @router.get("/events")
