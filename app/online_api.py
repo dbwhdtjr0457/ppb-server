@@ -1,7 +1,8 @@
+import time
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, or_, select, text
 
 from app import catalogue, inventory, maintenance, social
 from app.game_api import Database, Identity, get_rules
@@ -136,6 +137,37 @@ def collection(
             {**item, "quantity": count, "available": free.get(key, 0), "reserved": held.get(key, 0)}
         )
     return paged(items, offset, limit, account.revision if not target else 0)
+
+
+@router.get("/notifications/summary")
+def notification_summary(db: Database, who: Identity):
+    """Counts the menu bar shows without opening the online window. Read-only and small:
+    the app polls it alongside its regular sync."""
+    now = int(time.time())
+    unread = db.scalar(
+        select(func.count())
+        .select_from(Notification)
+        .where(Notification.account_id == who.account_id, Notification.read.is_(False))
+    )
+    trades = db.scalar(
+        select(func.count())
+        .select_from(CardTrade)
+        .where(
+            CardTrade.recipient == who.account_id,
+            CardTrade.status == "pending",
+            CardTrade.expires_at > now,
+        )
+    )
+    friends = db.scalar(
+        select(func.count())
+        .select_from(Friendship)
+        .where(
+            Friendship.recipient == who.account_id,
+            Friendship.status == "pending",
+            Friendship.expires_at > now,
+        )
+    )
+    return {"unread": unread or 0, "incoming_trades": trades or 0, "incoming_friends": friends or 0}
 
 
 @router.get("/notifications")
