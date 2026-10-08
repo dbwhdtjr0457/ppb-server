@@ -15,15 +15,12 @@ class Settings:
     backup_keep: int = max(1, int(os.getenv("PPB_BACKUP_KEEP", "14")))
     # A private gateway may set this; it is not a per-user login system.
     gateway_key: str = os.getenv("PPB_GATEWAY_KEY", "")
-    registration_mode: str = os.getenv("PPB_REGISTRATION_MODE", "open")
     trust_cloudflare_proxy: bool = os.getenv("PPB_TRUST_CLOUDFLARE_PROXY", "0") == "1"
     private_diagnostics: bool = os.getenv("PPB_PRIVATE_DIAGNOSTICS", "0") == "1"
 
     def __post_init__(self):
         if self.rules_backend not in {"python", "swift"}:
             raise ValueError("PPB_RULES_BACKEND must be python or swift")
-        if self.registration_mode not in {"open", "link-code-only"}:
-            raise ValueError("PPB_REGISTRATION_MODE must be open or link-code-only")
 
 
 settings = Settings()

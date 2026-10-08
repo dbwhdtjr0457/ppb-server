@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
-from dataclasses import replace
 from uuid import uuid4
 
 import pytest
@@ -8,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
-from app import admin, auth_api
+from app import admin
 from app.auth_service import digest, hasher, issue_link_code, reset_password
 from app.database import Base, get_db, make_engine
 from app.game_api import get_rules
@@ -121,30 +120,31 @@ def test_wrong_password_unknown_email_and_rate_limit(auth):
     assert int(replies[-1].headers["retry-after"]) > 0
 
 
-def test_link_only_registration_accepts_operator_invites_but_never_creates_without_code(
+def test_email_password_registration_needs_no_code_and_invites_stay_optional(
     auth, monkeypatch
 ):
     client, sessions = auth
-    monkeypatch.setattr(
-        auth_api, "settings", replace(auth_api.settings, registration_mode="link-code-only")
-    )
     monkeypatch.setattr(admin, "SessionLocal", sessions)
     monkeypatch.setattr(admin, "rules", Rules())
+    # A deployment that still carries the old invite-only setting signs up normally.
+    monkeypatch.setenv("PPB_REGISTRATION_MODE", "link-code-only")
     response = client.post("/auth/register", json=credentials())
-    assert response.status_code == 403
-    assert response.json()["detail"] == "registration_requires_link_code"
-    with sessions() as db:
-        assert db.scalar(select(func.count()).select_from(Account)) == 0
-    invitation = admin.create_invite()
-    response = client.post("/auth/register", json=credentials(link_code=invitation["link_code"]))
     assert response.status_code == 201
-    assert response.json()["account_id"] == invitation["account_id"]
-    reused = client.post(
+    with sessions() as db:
+        assert db.scalar(select(func.count()).select_from(Account)) == 1
+    # An operator-created account can still be claimed with its one-time code.
+    invitation = admin.create_invite()
+    claimed = client.post(
         "/auth/register",
         json=credentials(email="second@example.com", link_code=invitation["link_code"]),
     )
+    assert claimed.status_code == 201
+    assert claimed.json()["account_id"] == invitation["account_id"]
+    reused = client.post(
+        "/auth/register",
+        json=credentials(email="third@example.com", link_code=invitation["link_code"]),
+    )
     assert reused.status_code == 409
-    # The signup gate must not interfere with ordinary account login.
     assert client.post("/auth/login", json=credentials()).status_code == 200
 
 

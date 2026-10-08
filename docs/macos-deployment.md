@@ -30,8 +30,7 @@ Updating the user's menu-bar app must not change the server's immutable catalogu
    `uv sync --locked` there before registering any service.
 3. Set `PPB_DATABASE_URL`, `PPB_RULES_BACKEND=python`,
    `PPB_RULES_DATA_DIRECTORY=<release>/data`, `PPB_BACKUP_DIRECTORY`,
-   `PPB_BACKUP_KEEP=14`, `PPB_PORT=8000`,
-   `PPB_REGISTRATION_MODE=link-code-only`, `PPB_TRUST_CLOUDFLARE_PROXY=1`, and
+   `PPB_BACKUP_KEEP=14`, `PPB_PORT=8000`, `PPB_TRUST_CLOUDFLARE_PROXY=1`, and
    `PPB_PRIVATE_DIAGNOSTICS=1` in the private `server.env`.
 4. On upgrades, stop the API and make a consistent SQLite backup before running
    Alembic. Migrate explicitly once; never migrate during an automatic restart.
@@ -46,7 +45,7 @@ Updating the user's menu-bar app must not change the server's immutable catalogu
    Keep API responses out of edge caching. Trust the Cloudflare client-IP header
    only through the explicitly enabled local connector path.
 7. Verify HTTPS from outside the origin, unauthorized API rejection, and
-   link-code-only registration before distributing a client release.
+   email/password registration before distributing a client release.
 
 The API runtime is `scripts/run-service.py`; it neither fetches packages nor
 changes database schemas. It uses a single Uvicorn worker and rotating server

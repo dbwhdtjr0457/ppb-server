@@ -5,7 +5,6 @@ from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient
 
 from app import auth_service, main
-from app.config import Settings
 
 
 def request(peer="127.0.0.1", **headers):
@@ -55,7 +54,3 @@ def test_private_diagnostics_reject_forwarded_requests_but_allow_local_probes(mo
     with TestClient(main.app, client=("203.0.113.20", 1234)) as client:
         assert client.get("/docs").status_code == 404
 
-
-def test_invalid_registration_mode_fails_closed():
-    with pytest.raises(ValueError, match="PPB_REGISTRATION_MODE"):
-        Settings(registration_mode="link-code-onyl")

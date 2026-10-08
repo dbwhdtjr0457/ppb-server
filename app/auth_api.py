@@ -25,7 +25,6 @@ from app.auth_service import (
     valid_password,
     verify_password,
 )
-from app.config import settings
 from app.database import get_db
 from app.game_api import get_rules
 from app.game_service import balance, initial_state
@@ -70,8 +69,6 @@ def register(
     payload: Register, request: Request, response: Response, db: Database, rules=Depends(get_rules)
 ):
     rate_limit(db, payload.email, client_address(request))
-    if settings.registration_mode == "link-code-only" and payload.link_code is None:
-        raise HTTPException(403, "registration_requires_link_code")
     encoded = hasher.hash(payload.password.get_secret_value())
     db.execute(text("BEGIN IMMEDIATE"))
     try:
