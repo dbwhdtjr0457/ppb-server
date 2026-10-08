@@ -315,9 +315,13 @@ def test_preferences_and_clearing_optional_values_match(pair, dexes):
     assert "favoriteCardID" not in cleared and "title" not in cleared
 
 
-def test_initialize_and_oripa_refresh_preserve_wallet_and_create_valid_boxes(pair, catalog):
-    cards = {card[0]: card for card in catalog["cards"]}
-    tier_rank = {tier: rank for rank, tier in enumerate(catalog["tierOrder"])}
+def test_initialize_and_oripa_refresh_preserve_wallet_and_create_valid_boxes(pair):
+    # Use the tiers both engines actually apply. The app corrects a few upstream
+    # rows while loading card-index.json (Black Bolt/White Flare Victini BWR and
+    # Archen IR), so the raw file disagrees with the exported rules for them.
+    data = pair[1]._context(None).data
+    tier_of = {card["id"]: card["tier"] for card in data["cards"]}
+    tier_rank = data["tier_ranks"]
     for engine in pair[:2]:
         before = state()
         initialized, result, _ = engine.apply(deepcopy(before), {"kind": "initialize"})
@@ -333,8 +337,8 @@ def test_initialize_and_oripa_refresh_preserve_wallet_and_create_valid_boxes(pai
             box = after["oripa"]
             assert len(box["cards"]) == len(set(box["cards"])) == 40
             assert box["opened"] == []
-            assert all(card in cards for card in box["cards"])
-            assert all(tier_rank[cards[card][2]] >= tier_rank["RR"] for card in box["cards"])
+            assert all(card in tier_of for card in box["cards"])
+            assert all(tier_rank[tier_of[card]] >= tier_rank["RR"] for card in box["cards"])
 
 
 def test_price_snapshot_override_changes_quotes_and_sale_values_consistently(pair):
