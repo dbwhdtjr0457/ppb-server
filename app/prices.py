@@ -16,7 +16,14 @@ from sqlalchemy.orm import Session
 
 from app.models import PriceSnapshot, ServerJob
 
-PRICED_COMMANDS = {"buy_packs", "sell_spares", "sell_bulk", "pull_oripa", "refresh_oripa"}
+PRICED_COMMANDS = {
+    "buy_packs",
+    "sell_spares",
+    "sell_bulk",
+    "pull_oripa",
+    "refresh_oripa",
+    "rotation_buy",
+}
 
 
 def resources(executable: str) -> Path:

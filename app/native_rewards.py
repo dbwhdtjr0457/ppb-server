@@ -232,10 +232,15 @@ def initialize_gifts(state, ctx):
 
 
 def set_preferences(state, command, ctx):
+    from app.native_levels import title_available
+
     mode = command.get("opening_mode")
     favorite = command.get("favorite_card_id")
     title = command.get("title")
+    level_title = command.get("level_title")
     _require(mode in ("game", "realistic"))
+    _require(title is None or level_title is None)
+    _require(level_title is None or title_available(state, level_title))
     _require(favorite is None or state.get("cards", {}).get(favorite, 0) > 0)
     done = _completed_count(set(state.get("claimedDex", ())), ctx.data["dexes"])
     _require(
@@ -255,6 +260,10 @@ def set_preferences(state, command, ctx):
         state.pop("title", None)
     else:
         state["title"] = title
+    if level_title is None:
+        state.pop("levelTitle", None)
+    else:
+        state["levelTitle"] = level_title
     return {}
 
 

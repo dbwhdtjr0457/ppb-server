@@ -7,6 +7,7 @@ from sqlalchemy import and_, or_, select
 
 from app import catalogue, inventory
 from app.models import Account, CardTrade, Friendship, Notification, SocialProfile, UserBlock
+from app.native_levels import level_for
 
 
 def profile(db, account_id):
@@ -234,4 +235,13 @@ def friend_view(db, actor_id, target_id, rules):
     }
     result["wishlist"] = own["wishlist"] if target.wishlist_public else []
     result["binder"] = own["binder"] if target.binder_public else []
+    result["level"] = account_level(db, target.account_id)
     return result
+
+
+def account_level(db, account_id) -> int:
+    """Trainer level shown next to a friend's name. Derived, never stored."""
+    account = db.get(Account, account_id)
+    state = account.state if account and isinstance(account.state, dict) else {}
+    opened = state.get("packsOpened", 0)
+    return level_for(opened if type(opened) is int else 0)

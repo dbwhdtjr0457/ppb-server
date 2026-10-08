@@ -87,6 +87,7 @@ def friends(
                     "incoming": row.recipient == account.id,
                     "public_id": p.public_id,
                     "nickname": p.nickname,
+                    "level": social.account_level(db, other),
                     "expires_at": row.expires_at,
                 }
             )

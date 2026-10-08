@@ -74,6 +74,18 @@ class Preferences(StrictModel):
     opening_mode: Literal["game", "realistic"]
     favorite_card_id: Identifier | None = None
     title: Annotated[int, Field(strict=True, ge=0, le=10000)] | None = None
+    # Level titles (native_levels.TITLE_LEVELS). At most one of title/level_title.
+    level_title: Annotated[int, Field(strict=True, ge=1, le=100)] | None = None
+
+
+class LevelClaim(StrictModel):
+    kind: Literal["claim_levels"]
+
+
+class RotationBuy(StrictModel):
+    kind: Literal["rotation_buy"]
+    card_id: Identifier
+    date: Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")]
 
 
 Command = Annotated[
@@ -86,6 +98,8 @@ Command = Annotated[
     | Oripa
     | RefreshOripa
     | Preferences
+    | LevelClaim
+    | RotationBuy
     | Bonus,
     Field(discriminator="kind"),
 ]

@@ -130,7 +130,14 @@ def normalize_state(state: dict, ctx) -> None:
     for key in COUNT_MAPS:
         if key != "claimedTodayTokensByProvider":
             state.setdefault(key, {})
-    for key in ("openingHistory", "claimedDex", "coupons", "grantedGifts"):
+    for key in (
+        "openingHistory",
+        "claimedDex",
+        "coupons",
+        "grantedGifts",
+        "claimedLevels",
+        "rotationPurchases",
+    ):
         state.setdefault(key, [])
     if not state["claimedDex"] and isinstance(state.get("completedDex"), list):
         state["claimedDex"] = list(state["completedDex"])
@@ -142,7 +149,13 @@ def normalize_state(state: dict, ctx) -> None:
     state.setdefault("packGrantedInstances", {})
     state.setdefault("packGrantSeeded", False)
     state.setdefault("language", ctx.data.get("state_defaults", {}).get("language", "en"))
-    for optional in ("favoriteCardID", "title", "oripa", "claimedTodayTokensByProvider"):
+    for optional in (
+        "favoriteCardID",
+        "title",
+        "levelTitle",
+        "oripa",
+        "claimedTodayTokensByProvider",
+    ):
         if state.get(optional) is None:
             state.pop(optional, None)
     if "oripa" in state:
@@ -209,11 +222,17 @@ def validate_state(state: dict, ctx) -> None:
         require(key not in state or type(state[key]) is str)
     for key, allowed in (("openingMode", OPENING_MODES), ("language", LANGUAGES)):
         require(key not in state or type(state[key]) is str and state[key] in allowed)
-    for key in ("claimedDex", "completedDex", "grantedGifts"):
+    for key in ("claimedDex", "completedDex", "grantedGifts", "rotationPurchases"):
         require(key not in state or _strings(state[key]))
+    require(
+        "claimedLevels" not in state
+        or isinstance(state["claimedLevels"], list)
+        and all(_integer(level) for level in state["claimedLevels"])
+    )
     for key, predicate in (
         ("favoriteCardID", lambda value: type(value) is str),
         ("title", _integer),
+        ("levelTitle", _integer),
     ):
         require(key not in state or state[key] is None or predicate(state[key]))
     instances = state.get("packGrantedInstances", {})

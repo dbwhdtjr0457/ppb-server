@@ -166,6 +166,10 @@ class PythonRules:
         kind = command.get("quote_kind", command["kind"])
         if kind == "pull_oripa":
             return opening.oripa_price(state, ctx)
+        if kind == "rotation_buy":
+            from app import native_rotation as rotation
+
+            return rotation.price(command.get("card_id", ""), ctx)
         if kind == "refresh_oripa":
             return 0
         result = economy.apply(
@@ -197,6 +201,14 @@ class PythonRules:
             return opening.pull_oripa(state, command, ctx, quoted_tokens=quoted_tokens)
         if kind in {"claim_gift", "claim_dex", "report_bonus", "set_preferences"}:
             return getattr(rewards, kind)(state, command, ctx)
+        if kind == "claim_levels":
+            from app import native_levels as levels
+
+            return levels.claim_levels(state, command, ctx)
+        if kind == "rotation_buy":
+            from app import native_rotation as rotation
+
+            return rotation.buy(state, command, ctx, quoted_tokens=quoted_tokens)
         if kind in {
             "valuation",
             "transfer",
