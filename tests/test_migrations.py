@@ -17,9 +17,19 @@ def test_upgrade_downgrade_upgrade(tmp_path):
     with sqlite3.connect(path) as connection:
         assert (
             connection.execute("select version_num from alembic_version").fetchone()[0]
-            == "20260930_0006"
+            == "20261008_0007"
         )
         assert connection.execute("select count(*) from accounts").fetchone()[0] == 0
+        profiles = {row[1]: row for row in connection.execute("PRAGMA table_info(social_profiles)")}
+        # Existing profiles share their spare cards with friends unless they opt out.
+        assert profiles["trade_list_public"][3] == 1 and profiles["trade_list_public"][4] in {
+            "1",
+            "'1'",
+            "TRUE",
+            "true",
+        }
+        trades = [row[1] for row in connection.execute("PRAGMA table_info(card_trades)")]
+        assert "counter_of" in trades
 
 
 def test_auth_migration_preserves_legacy_wallet(tmp_path):

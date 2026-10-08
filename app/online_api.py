@@ -98,6 +98,21 @@ def friend(public_id: str, db: Database, who: Identity, rules=Depends(get_rules)
     return social.friend_view(db, who.account_id, public_id, rules)
 
 
+@router.get("/friends/{public_id}/tradeable")
+def tradeable(public_id: str, db: Database, who: Identity, rules=Depends(get_rules)):
+    """A friend's trade binder: spare copies they could give, keeping one of each.
+
+    Only printings and spare counts; the app has the catalogue and prices. Not paged,
+    because the binder is sorted and searched as a whole on the device.
+    """
+    view = social.friend_view(db, who.account_id, public_id, rules)
+    if not view["trade_list_public"]:
+        raise HTTPException(403, "trade_list_private")
+    friend = db.get(Account, social.public_target(db, public_id).account_id)
+    spares = {key: count for key, count in inventory.available(db, friend).items() if count > 0}
+    return {"items": spares}
+
+
 @router.get("/blocks")
 def blocks(db: Database, who: Identity, offset: Offset = 0, limit: Limit = 50):
     rows = db.scalars(
@@ -286,6 +301,7 @@ def trades(db: Database, who: Identity, offset: Offset = 0, limit: Limit = 50):
                 "requested": row.requested,
                 "status": row.status,
                 "expires_at": row.expires_at,
+                "counter_of": row.counter_of,
             }
         )
     return paged(items, offset, limit, db.get(Account, who.account_id).revision)
@@ -416,7 +432,13 @@ def mutate(
         "binder": {"binder"},
         "notifications": {"notification_read"},
     }
-    allowed["trades"] = {"trade_create", "trade_accept", "trade_reject", "trade_cancel"}
+    allowed["trades"] = {
+        "trade_create",
+        "trade_accept",
+        "trade_reject",
+        "trade_cancel",
+        "trade_counter",
+    }
     allowed["listings"] = {"listing_create", "listing_cancel", "listing_buy"}
     if body.action not in allowed[request.url.path.rsplit("/", 1)[-1]]:
         raise HTTPException(422, "action_route_mismatch")

@@ -177,6 +177,9 @@ class SocialProfile(Base):
     collection_public: Mapped[bool] = mapped_column(default=False)
     wishlist_public: Mapped[bool] = mapped_column(default=False)
     binder_public: Mapped[bool] = mapped_column(default=False)
+    # Spare copies a friend may request in a trade. Public by default: trades
+    # only happen between friends, and spares are what a trade binder holds.
+    trade_list_public: Mapped[bool] = mapped_column(default=True)
     wishlist: Mapped[list] = mapped_column(JSON, default=list)
     binder: Mapped[list] = mapped_column(JSON, default=list)
 
@@ -224,6 +227,8 @@ class CardTrade(Base):
     status: Mapped[str] = mapped_column(String(20))
     version: Mapped[int] = mapped_column(default=0)
     expires_at: Mapped[int]
+    # The trade this one answers with changed cards, if it is a counter-offer.
+    counter_of: Mapped[str | None] = mapped_column(String(36), default=None)
 
 
 class MarketListing(Base):

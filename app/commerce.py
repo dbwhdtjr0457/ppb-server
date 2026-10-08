@@ -28,30 +28,57 @@ def transfer(db, account, rules, remove=None, add=None, credit=0, debit=0):
     account.state = state
 
 
+def trade_lines(command, rules):
+    offered = {line.printing: line.quantity for line in command.offered}
+    requested = {line.printing: line.quantity for line in command.requested}
+    if not offered or not requested:
+        raise HTTPException(422, "both_sides_required")
+    for key in offered | requested:
+        catalogue.validate_printing(key, rules)
+    return offered, requested
+
+
+def check_requested(db, owner, requested):
+    """A friend who shares spare cards can only be asked for those spares.
+
+    Without the check a proposal could ask for cards the friend does not have and fail only
+    when they try to accept, after the sender's cards were held for 72 hours. Owners who keep
+    their spares private are not checked, so repeated proposals cannot reveal what they own.
+    """
+    if not social.profile(db, owner.id).trade_list_public:
+        return
+    free = inventory.available(db, owner)
+    if any(free.get(key, 0) < quantity for key, quantity in requested.items()):
+        raise HTTPException(409, "requested_cards_unavailable")
+
+
+def open_trade(db, sender, recipient, offered, requested, now, counter_of=None):
+    row = CardTrade(
+        id=str(uuid4()),
+        sender=sender.id,
+        recipient=recipient.id,
+        offered=offered,
+        requested=requested,
+        status="pending",
+        version=0,
+        expires_at=now + 72 * 3600,
+        counter_of=counter_of,
+    )
+    inventory.reserve(db, sender, row.id, offered)
+    db.add(row)
+    return row
+
+
 def trade(db, actor, command, rules):
     now = int(time.time())
     if command.action == "trade_create":
         other = social.public_target(db, command.target_id)
         if not social.are_friends(db, actor.id, other.account_id):
             raise HTTPException(403, "friends_required")
-        offered = {line.printing: line.quantity for line in command.offered}
-        requested = {line.printing: line.quantity for line in command.requested}
-        if not offered or not requested:
-            raise HTTPException(422, "both_sides_required")
-        for key in offered | requested:
-            catalogue.validate_printing(key, rules)
-        row = CardTrade(
-            id=str(uuid4()),
-            sender=actor.id,
-            recipient=other.account_id,
-            offered=offered,
-            requested=requested,
-            status="pending",
-            version=0,
-            expires_at=now + 72 * 3600,
-        )
-        inventory.reserve(db, actor, row.id, offered)
-        db.add(row)
+        offered, requested = trade_lines(command, rules)
+        recipient = db.get(Account, other.account_id)
+        check_requested(db, recipient, requested)
+        row = open_trade(db, actor, recipient, offered, requested, now)
         social.notify(db, other.account_id, "trade_request", row.id)
         return {"id": row.id}, {actor.id, other.account_id}
     row = db.get(CardTrade, str(command.target_id))
@@ -60,6 +87,22 @@ def trade(db, actor, command, rules):
     social.guard_version(row, command.target_version)
     if row.status != "pending" or row.expires_at <= now:
         raise HTTPException(409, "trade_unavailable")
+    if command.action == "trade_counter":
+        # The recipient answers with changed cards instead of only accepting or rejecting.
+        # The original closes as countered, releasing the sender's held cards, and a new
+        # proposal goes back the other way.
+        if actor.id != row.recipient or not social.are_friends(db, row.sender, row.recipient):
+            raise HTTPException(403, "recipient_required")
+        offered, requested = trade_lines(command, rules)
+        sender = db.get(Account, row.sender)
+        inventory.release(db, row.id)
+        db.flush()
+        check_requested(db, sender, requested)
+        counter = open_trade(db, actor, sender, offered, requested, now, counter_of=row.id)
+        row.status = "countered"
+        row.version += 1
+        social.notify(db, row.sender, "trade_countered", counter.id)
+        return {"id": counter.id, "status": "pending"}, {row.sender, row.recipient}
     if command.action == "trade_accept":
         if actor.id != row.recipient or not social.are_friends(db, row.sender, row.recipient):
             raise HTTPException(403, "recipient_required")

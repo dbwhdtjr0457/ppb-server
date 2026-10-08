@@ -35,6 +35,7 @@ class OnlineCommand(StrictModel):
         "trade_accept",
         "trade_reject",
         "trade_cancel",
+        "trade_counter",
         "listing_create",
         "listing_cancel",
         "listing_buy",
@@ -47,6 +48,7 @@ class OnlineCommand(StrictModel):
     collection_public: bool = False
     wishlist_public: bool = False
     binder_public: bool = False
+    trade_list_public: bool | None = None
     wishes: Annotated[list[Wish], Field(max_length=500)] = []
     binder: Annotated[list[Identifier], Field(max_length=36)] = []
     offered: Annotated[list[Line], Field(max_length=20)] = []

@@ -20,6 +20,7 @@ def profile(db, account_id):
             collection_public=False,
             wishlist_public=False,
             binder_public=False,
+            trade_list_public=True,
             wishlist=[],
             binder=[],
         )
@@ -101,6 +102,9 @@ def mutate(db, actor, command, rules):
             command.wishlist_public,
             command.binder_public,
         )
+        # Older apps do not send this flag; keep the stored choice instead of resetting it.
+        if command.trade_list_public is not None:
+            own.trade_list_public = command.trade_list_public
     elif action == "rotate_code":
         own.friend_code = secrets.token_hex(8).upper()
     elif action == "wishlist":
@@ -212,6 +216,7 @@ def view_profile(db, account_id, rules):
         "collection_public": row.collection_public,
         "wishlist_public": row.wishlist_public,
         "binder_public": row.binder_public,
+        "trade_list_public": row.trade_list_public,
         "wishlist": wishes,
         "binder": [key for key in row.binder if owned.get(key, 0) > 0],
     }
@@ -230,6 +235,7 @@ def friend_view(db, actor_id, target_id, rules):
             "collection_public",
             "wishlist_public",
             "binder_public",
+            "trade_list_public",
         )
     }
     result["wishlist"] = own["wishlist"] if target.wishlist_public else []
