@@ -116,6 +116,28 @@ def test_real_purchase_bulk_open_replay_sale_and_oripa(real_game):
     assert all(event["rules_version"].startswith("ppb-server-v2/") for event in events)
 
 
+def test_oripa_refresh_is_free_and_replay_preserves_the_new_box(real_game):
+    client, headers = real_game
+    initial, _ = command(client, headers, {"kind": "initialize"})
+    before = initial["snapshot"]
+    refreshed, body = command(client, headers, {"kind": "refresh_oripa"})
+    after = refreshed["snapshot"]
+    box = after["state"]["oripa"]
+    assert box["serial"] == before["state"]["oripa"]["serial"] + 1
+    assert len(box["cards"]) == len(set(box["cards"])) == 40
+    assert box["opened"] == []
+    assert after["balance"] == before["balance"]
+    assert {k: v for k, v in after["state"].items() if k != "oripa"} == {
+        k: v for k, v in before["state"].items() if k != "oripa"
+    }
+    reread = client.get("/v1/state", headers=headers).json()
+    assert reread["state"]["oripa"] == box
+    replay = client.post("/v1/commands", headers=headers, json=body)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["replayed"] is True
+    assert replay.json()["snapshot"]["state"]["oripa"] == box
+
+
 def test_first_command_cannot_bypass_first_run_gift_eligibility(real_game):
     client, headers = real_game
     reply, _ = command(client, headers, {"kind": "report_tokens", "collected_total": 100000000})

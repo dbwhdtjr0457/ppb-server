@@ -360,3 +360,53 @@ def test_oripa_generation_uses_unique_stock_and_fresh_cards_first(ctx, monkeypat
     box = opening.make_oripa_box(wallet, ctx, rng=opening.SplitMix64(42))
     assert sum(card_id in wallet["cards"] for card_id in box["cards"]) <= 1
     assert len(box["cards"]) == len(set(box["cards"])) == 40
+
+
+@pytest.mark.parametrize("unit, expected", [(0.0, "cheap"), (0.999999, "expensive")])
+def test_oripa_headline_reaches_both_catalogue_price_extremes(ctx, monkeypatch, unit, expected):
+    class FixedTarget(opening.SplitMix64):
+        def unit(self):
+            return unit
+
+    keyed = (("expensive", 100_000.0),) + tuple(
+        (f"middle-{index}", 10.0) for index in range(38)
+    ) + (("cheap", 0.01),)
+    shelf = opening.OripaShelf(keyed, tuple(-usd for _, usd in keyed), 10.0)
+    monkeypatch.setattr(opening, "oripa_shelf", lambda _: shelf)
+    wallet = state()
+    before = deepcopy(wallet)
+    # With only 40 distinct cards, both extremes could appear as filler even if
+    # the headline still had a price cap. Record the first selection separately.
+    selected = []
+    original = opening.OripaShelf.window
+
+    def record_window(self, low, high, need):
+        candidates = original(self, low, high, need)
+        selected.append(candidates)
+        return candidates
+
+    monkeypatch.setattr(opening.OripaShelf, "window", record_window)
+    box = opening.make_oripa_box(wallet, ctx, rng=FixedTarget(42))
+    assert selected[0] == ((expected, dict(keyed)[expected]),)
+    assert len(box["cards"]) == len(set(box["cards"])) == 40
+    assert wallet == before
+
+
+@pytest.mark.parametrize("price", [0.0, 10.0])
+def test_oripa_equal_prices_keep_all_cards_eligible(ctx, monkeypatch, price):
+    class RecordedDraw(opening.SplitMix64):
+        first_pool_size = None
+
+        def bounded(self, upper):
+            if self.first_pool_size is None:
+                self.first_pool_size = upper
+            return super().bounded(upper)
+
+    keyed = tuple((f"card-{index}", price) for index in range(40))
+    shelf = opening.OripaShelf(keyed, tuple(-usd for _, usd in keyed), price)
+    monkeypatch.setattr(opening, "oripa_shelf", lambda _: shelf)
+    for seed in (1, 42):
+        rng = RecordedDraw(seed)
+        box = opening.make_oripa_box(state(), ctx, rng=rng)
+        assert rng.first_pool_size == 40
+        assert len(box["cards"]) == len(set(box["cards"])) == 40

@@ -492,9 +492,11 @@ def make_oripa_box(state, ctx, *, rng=None):
     if not shelf.keyed:
         return {"cards": [], "opened": [], "serial": serial}
     rng = rng or SplitMix64(secrets.randbits(64))
-    low, high = 25.0 * shelf.base_usd, 500.0 * shelf.base_usd
+    # Keep logarithmic value sampling across the catalogue's actual price range.
+    # Median multiples excluded both cheap cards and the most expensive prizes.
+    low, high = shelf.keyed[-1][1], shelf.keyed[0][1]
     if low <= 0 or high <= low:
-        headline = shelf.keyed[0]
+        headline = shelf.keyed[rng.bounded(len(shelf.keyed))]
     else:
         target = low * math.pow(high / low, rng.unit())
         candidates = shelf.window(target * 0.94, target * 1.06, 1)
