@@ -183,20 +183,42 @@ def notification_summary(db: Database, who: Identity):
             Friendship.expires_at > now,
         )
     )
-    return {"unread": unread or 0, "incoming_trades": trades or 0, "incoming_friends": friends or 0}
+    latest = db.scalar(
+        select(func.max(Notification.id)).where(Notification.account_id == who.account_id)
+    )
+    return {
+        "unread": unread or 0,
+        "incoming_trades": trades or 0,
+        "incoming_friends": friends or 0,
+        # The newest notification id. The app compares it with the last one it showed to
+        # decide whether anything new arrived, without reading the list every minute.
+        "latest_id": latest or 0,
+    }
 
 
 @router.get("/notifications")
-def notifications(db: Database, who: Identity, after: Offset = 0, limit: Limit = 50):
-    rows = list(
-        db.scalars(
-            select(Notification)
-            .where(Notification.account_id == who.account_id, Notification.id > after)
-            .order_by(Notification.id)
-            .limit(limit + 1)
-        )
-    )
+def notifications(
+    db: Database,
+    who: Identity,
+    after: Offset = 0,
+    limit: Limit = 50,
+    newest: bool = False,
+    before: Annotated[int | None, Query(ge=1)] = None,
+):
+    """Oldest first after `after` (how the app fetches what arrived since it last looked),
+    or newest first with `newest=true` and the `before` cursor (how the list is shown)."""
+    query = select(Notification).where(Notification.account_id == who.account_id)
+    descending = newest or before is not None
+    if descending:
+        if before is not None:
+            query = query.where(Notification.id < before)
+        query = query.order_by(Notification.id.desc())
+    else:
+        query = query.where(Notification.id > after).order_by(Notification.id)
+    rows = list(db.scalars(query.limit(limit + 1)))
     visible = rows[:limit]
+    more = visible[-1].id if len(rows) > limit else None
+    details = social.notification_details(db, who.account_id, visible)
     return {
         "items": [
             {
@@ -205,10 +227,13 @@ def notifications(db: Database, who: Identity, after: Offset = 0, limit: Limit =
                 "target": r.target,
                 "read": r.read,
                 "created_at": r.created_at,
+                "detail": details.get(r.id, {}),
             }
             for r in visible
         ],
-        "next_after": visible[-1].id if len(rows) > limit else None,
+        "order": "desc" if descending else "asc",
+        "next_after": None if descending else more,
+        "next_before": more if descending else None,
     }
 
 
@@ -431,7 +456,7 @@ def mutate(
         },
         "wishlist": {"wishlist"},
         "binder": {"binder"},
-        "notifications": {"notification_read"},
+        "notifications": {"notification_read", "notification_read_all"},
     }
     allowed["trades"] = {
         "trade_create",

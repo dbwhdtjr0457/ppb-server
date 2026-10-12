@@ -40,6 +40,7 @@ class OnlineCommand(StrictModel):
         "listing_cancel",
         "listing_buy",
         "notification_read",
+        "notification_read_all",
     ]
     target_id: UUID | None = None
     target_version: Annotated[int, Field(strict=True, ge=0)] | None = None
