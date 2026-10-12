@@ -5,7 +5,7 @@ from test_online import mutate, online, own  # noqa: F401
 def test_notification_summary_counts_what_needs_an_answer(online):  # noqa: F811
     client, sessions, a, b = online
     empty = client.get("/v1/notifications/summary", headers=headers(b)).json()
-    assert empty == {"unread": 0, "incoming_trades": 0, "incoming_friends": 0}
+    assert empty == {"unread": 0, "incoming_trades": 0, "incoming_friends": 0, "latest_id": 0}
 
     first = own(client, a)
     second = own(client, b)

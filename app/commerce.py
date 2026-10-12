@@ -131,7 +131,8 @@ def trade(db, actor, command, rules):
         raise HTTPException(422, "invalid_trade_action")
     row.version += 1
     for account_id in (row.sender, row.recipient):
-        social.notify(db, account_id, "trade_" + row.status, row.id)
+        # Both sides keep the line in their history; only the other side has news.
+        social.notify(db, account_id, "trade_" + row.status, row.id, read=account_id == actor.id)
     return {"id": row.id, "status": row.status}, {row.sender, row.recipient}
 
 
@@ -214,7 +215,7 @@ def market(db, actor, command, rules):
     transfer(db, actor, rules, add={row.printing: command.quantity}, debit=total)
     row.version += 1
     social.notify(db, seller.id, "listing_sold", row.id)
-    social.notify(db, actor.id, "listing_bought", row.id)
+    social.notify(db, actor.id, "listing_bought", row.id, read=True)
     return {"id": row.id, "quantity": command.quantity, "total_tokens": total}, {
         seller.id,
         actor.id,

@@ -6,7 +6,15 @@ from fastapi import HTTPException
 from sqlalchemy import and_, or_, select
 
 from app import catalogue, inventory
-from app.models import Account, CardTrade, Friendship, Notification, SocialProfile, UserBlock
+from app.models import (
+    Account,
+    CardTrade,
+    Friendship,
+    MarketListing,
+    Notification,
+    SocialProfile,
+    UserBlock,
+)
 from app.native_levels import level_for
 
 
@@ -60,12 +68,63 @@ def are_friends(db, left, right):
     )
 
 
-def notify(db, account_id, kind, target):
+def notify(db, account_id, kind, target, *, read=False):
+    """Record what happened for one account.
+
+    `read=True` is for the person who just did the thing: accepting a trade or
+    buying a listing still leaves a line in their history, but it must not raise
+    their own unread count or reach them as a push notification.
+    """
     db.add(
         Notification(
-            account_id=account_id, kind=kind, target=target, read=False, created_at=int(time.time())
+            account_id=account_id, kind=kind, target=target, read=read, created_at=int(time.time())
         )
     )
+
+
+def notification_details(db, account_id, rows):
+    """Who and what each notification is about, for the list and for push text.
+
+    `target` is only an id. Loading the trades, listings and friendships a page
+    refers to in three queries keeps this off the per-row path.
+    """
+    by_kind = {"trade": set(), "listing": set(), "friend": set()}
+    for row in rows:
+        prefix = "listing" if row.kind == "wishlist_listing" else row.kind.split("_", 1)[0]
+        if prefix in by_kind:
+            by_kind[prefix].add(row.target)
+
+    def load(model, ids):
+        return {r.id: r for r in db.scalars(select(model).where(model.id.in_(ids)))} if ids else {}
+
+    trades = load(CardTrade, by_kind["trade"])
+    friendships = load(Friendship, by_kind["friend"])
+    listings = load(MarketListing, by_kind["listing"])
+    others = {
+        r.sender if r.recipient == account_id else r.recipient
+        for r in (*trades.values(), *friendships.values())
+    }
+    names = (
+        {
+            p.account_id: p.nickname
+            for p in db.scalars(select(SocialProfile).where(SocialProfile.account_id.in_(others)))
+        }
+        if others
+        else {}
+    )
+    details = {}
+    for row in rows:
+        pair_row = trades.get(row.target) or friendships.get(row.target)
+        listing = listings.get(row.target)
+        if row.kind.startswith(("trade_", "friend_")) and pair_row is not None:
+            other = pair_row.sender if pair_row.recipient == account_id else pair_row.recipient
+            if other in names:
+                details[row.id] = {"nickname": names[other]}
+        elif listing is not None and (
+            row.kind.startswith("listing_") or row.kind == "wishlist_listing"
+        ):
+            details[row.id] = {"printing": listing.printing, "unit_tokens": listing.unit_tokens}
+    return details
 
 
 def guard_version(row, expected):
@@ -85,8 +144,9 @@ def cancel_between(db, left, right):
     ):
         trade.status, trade.version = "cancelled", trade.version + 1
         inventory.release(db, trade.id)
-        notify(db, trade.sender, "trade_cancelled", trade.id)
-        notify(db, trade.recipient, "trade_cancelled", trade.id)
+        # `left` is the one who unfriended or blocked; they caused the cancellation.
+        notify(db, trade.sender, "trade_cancelled", trade.id, read=trade.sender == left)
+        notify(db, trade.recipient, "trade_cancelled", trade.id, read=trade.recipient == left)
 
 
 def mutate(db, actor, command, rules):
@@ -193,6 +253,19 @@ def mutate(db, actor, command, rules):
         if not row or row.account_id != actor.id:
             raise HTTPException(404, "notification_not_found")
         row.read = True
+    elif action == "notification_read_all":
+        # Everything unread at this moment. `notification_id`, when sent, is the newest
+        # one the app has shown: anything that arrived after it stays unread.
+        unread = select(Notification).where(
+            Notification.account_id == actor.id, Notification.read.is_(False)
+        )
+        if command.notification_id is not None:
+            unread = unread.where(Notification.id <= command.notification_id)
+        marked = 0
+        for row in db.scalars(unread):
+            row.read = True
+            marked += 1
+        result["marked"] = marked
     else:
         raise HTTPException(422, "invalid_social_action")
     return result, affected
