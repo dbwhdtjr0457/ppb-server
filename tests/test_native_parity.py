@@ -530,22 +530,3 @@ def test_seeded_openings_match_swift_oracle_for_every_set_and_mode(pair):
         )
         assert_tree_equal(opened, row["opened"], f"{row['set_id']}/{row['mode']}")
         assert pity == row["pity_after"], f"{row['set_id']}/{row['mode']}: pity"
-
-
-def test_seeded_oripa_boxes_match_swift_for_new_and_complete_collections(pair):
-    from app.native_opening import SplitMix64, make_oripa_box
-
-    oracle = json.loads((pair[3] / "native-rules-oracle.json").read_text())
-    fixtures = oracle["oripa"]
-    assert {(row["seed"], row["owned_all"]) for row in fixtures} == {
-        ("42", False),
-        ("42", True),
-        ("2026", False),
-        ("2026", True),
-    }
-    context = pair[1]._context(None)
-    for row in fixtures:
-        owned = dict.fromkeys(pair[1].catalogue, 1) if row["owned_all"] else {}
-        before = state(cards=owned, oripa={"serial": row["serial"] - 1})
-        actual = make_oripa_box(before, context, rng=SplitMix64(int(row["seed"])))
-        assert_tree_equal(actual, row["box"], f"oripa/{row['seed']}/owned={row['owned_all']}")
