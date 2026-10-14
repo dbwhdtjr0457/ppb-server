@@ -1,5 +1,6 @@
-"""Trainer levels and the rotation market must match the app's Swift rules exactly."""
+"""Trainer levels must match the app's Swift rules; the rotation lineup is server-drawn."""
 
+import random
 from types import SimpleNamespace
 
 import pytest
@@ -8,6 +9,7 @@ from fastapi import HTTPException
 from app import native_levels as levels
 from app import native_rewards as rewards
 from app import native_rotation as rotation
+from app.native_economy import sale_unit
 from app.native_rules import PythonRules
 
 
@@ -63,60 +65,22 @@ def real_context():
     return PythonRules(clock=lambda: 1_791_500_000.0, seed_source=lambda: 42)._context(None)
 
 
-def test_rotation_lineup_matches_the_app(real_context):
-    # RotationMarketTests / the app's lineup for this date with the same catalogue.
-    assert rotation.seed("2026-10-08") == 8232385724070197664
-    assert rotation.lineup("2026-10-08", real_context) == [
-        "swsh5-181",
-        "sv6-173",
-        "swsh45sv-SV072",
-        "sv2-231",
-        "ex12-89",
-        "xy6-5",
-        "hgss3-7",
-        "sm11-60",
-    ]
-    assert rotation.date_key(1_791_502_200) == "2026-10-08"
+def test_rotation_lineup_follows_the_tier_plan(real_context):
+    picked = rotation.lineup(real_context, random.Random(7))
+    tiers = [real_context.cards_by_id[card_id]["tier"] for card_id in picked]
+    assert len(picked) == len(set(picked)) == 8
+    assert tiers[0] in rotation.TOP
+    assert all(tier in rotation.MIDDLE for tier in tiers[1:4])
+    assert all(tier in rotation.LOW for tier in tiers[4:])
+    # Drawn by the server, not derived from the date: another draw differs.
+    assert rotation.lineup(real_context, random.Random(8)) != picked
 
 
 def test_rotation_price_beats_the_best_sale(real_context):
-    from app.native_economy import default_finish, tokens, usd
-
-    for card_id in rotation.lineup("2026-10-08", real_context):
-        finish = default_finish(card_id, real_context)
-        sale = tokens(usd(card_id, real_context, finish), real_context)
-        assert rotation.price(card_id, real_context) > sale * 1.15
-
-
-def test_rotation_buy_sells_each_card_once(real_context):
-    date = rotation.date_key(real_context.now)
-    card_id = rotation.lineup(date, real_context)[-1]
-    cost = rotation.price(card_id, real_context)
-    state = {
-        "cards": {},
-        "printingCards": {},
-        "cardFirstAt": {},
-        "claimedDex": [],
-        "usedSinceInstall": cost * 2,
-        "spentTokens": 0,
-        "refundedTokens": 0,
-        "perkTokens": 0,
-        "marketEarnedTokens": 0,
-        "marketSpentTokens": 0,
-        "rotationPurchases": ["2000-01-01|old-card"],
-    }
-    command = {"kind": "rotation_buy", "card_id": card_id, "date": date}
-    result = rotation.buy(state, command, real_context)
-    assert result["rotation"]["id"] == card_id
-    assert state["marketSpentTokens"] == cost
-    assert state["cards"][card_id] == 1
-    assert state["rotationPurchases"] == [f"{date}|{card_id}"]
-    with pytest.raises(HTTPException) as again:
-        rotation.buy(state, command, real_context)
-    assert again.value.detail == "rotation_changed"
-    with pytest.raises(HTTPException) as stale:
-        rotation.buy(state, {**command, "date": "2000-01-01"}, real_context)
-    assert stale.value.detail == "rotation_changed"
+    for printing, unit in rotation.offers(real_context, random.Random(3)):
+        card_id, finish = printing.rsplit("#", 1)
+        # Buying here and selling straight back to the game never pays.
+        assert unit >= sale_unit(card_id, finish, real_context, 0.15)
 
 
 def test_new_commands_pass_the_strict_schema():
@@ -126,12 +90,11 @@ def test_new_commands_pass_the_strict_schema():
 
     base = {"request_id": str(uuid4()), "expected_revision": 0}
     assert CommandRequest(**base, command={"kind": "claim_levels"}).command.kind == "claim_levels"
-    buy = CommandRequest(
-        **base, command={"kind": "rotation_buy", "card_id": "sv1-1", "date": "2026-10-08"}
-    )
-    assert buy.command.date == "2026-10-08"
+    # The shop rotation became server listings on the online market.
     with pytest.raises(ValueError):
-        CommandRequest(**base, command={"kind": "rotation_buy", "card_id": "sv1-1", "date": "x"})
+        CommandRequest(
+            **base, command={"kind": "rotation_buy", "card_id": "sv1-1", "date": "2026-10-08"}
+        )
     prefs = CommandRequest(
         **base, command={"kind": "set_preferences", "opening_mode": "game", "level_title": 10}
     )

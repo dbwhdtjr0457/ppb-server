@@ -84,7 +84,7 @@ def ready(db: DbSession):
 
     try:
         revision = db.scalar(text("SELECT version_num FROM alembic_version"))
-        if revision != "20261008_0007":
+        if revision != "20261014_0008":
             raise ValueError("Migration required")
         _, _, version = rules.apply(initial_state(), {"kind": "inspect"})
     except Exception as error:

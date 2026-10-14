@@ -139,12 +139,14 @@ def normalize_state(state: dict, ctx) -> None:
         "coupons",
         "grantedGifts",
         "claimedLevels",
-        "rotationPurchases",
     ):
         state.setdefault(key, [])
     if not state["claimedDex"] and isinstance(state.get("completedDex"), list):
         state["claimedDex"] = list(state["completedDex"])
     state.pop("completedDex", None)
+    # The shop's daily rotation moved to the online market, which records its own
+    # purchases. The app no longer reads or writes this ledger.
+    state.pop("rotationPurchases", None)
     state.setdefault("schemaVersion", 2)
     state.setdefault("openingMode", "game")
     state.setdefault("installBaselineSet", False)
@@ -225,7 +227,7 @@ def validate_state(state: dict, ctx) -> None:
         require(key not in state or type(state[key]) is str)
     for key, allowed in (("openingMode", OPENING_MODES), ("language", LANGUAGES)):
         require(key not in state or type(state[key]) is str and state[key] in allowed)
-    for key in ("claimedDex", "completedDex", "grantedGifts", "rotationPurchases"):
+    for key in ("claimedDex", "completedDex", "grantedGifts"):
         require(key not in state or _strings(state[key]))
     require(
         "claimedLevels" not in state

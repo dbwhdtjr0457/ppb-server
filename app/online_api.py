@@ -4,17 +4,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, select, text
 
-from app import catalogue, inventory, maintenance, social
+from app import catalogue, inventory, maintenance, rotation, social
 from app.game_api import Database, Identity, get_rules
 from app.models import (
     Account,
     CardTrade,
     Friendship,
     MarketListing,
+    MarketPurchase,
     Notification,
     SocialProfile,
     UserBlock,
 )
+from app.observability import logger
 from app.online_schemas import OnlineCommand
 from app.online_service import execute, prepare
 
@@ -348,16 +350,34 @@ def listings(
     rules=Depends(get_rules),
 ):
     maintenance.expire(db)
+    try:
+        rotation.restock(db, rules)
+    except Exception:
+        # Browsing must not fail because today's lineup could not be drawn. The
+        # periodic job retries and records the failure.
+        db.rollback()
+        logger.exception("rotation restock failed")
     query = (
         select(MarketListing, SocialProfile)
-        .join(SocialProfile, SocialProfile.account_id == MarketListing.seller)
+        .outerjoin(SocialProfile, SocialProfile.account_id == MarketListing.seller)
         .where(
-            MarketListing.seller.not_in(
-                select(UserBlock.other).where(UserBlock.actor == who.account_id)
-            ),
-            MarketListing.seller.not_in(
-                select(UserBlock.actor).where(UserBlock.other == who.account_id)
-            ),
+            or_(
+                MarketListing.seller.is_(None),
+                MarketListing.seller.not_in(
+                    select(UserBlock.other).where(UserBlock.actor == who.account_id)
+                )
+                & MarketListing.seller.not_in(
+                    select(UserBlock.actor).where(UserBlock.other == who.account_id)
+                ),
+            )
+        )
+    )
+    # Rotation cards this account already took its one copy of.
+    bought = set(
+        db.scalars(
+            select(MarketPurchase.listing_id)
+            .join(MarketListing, MarketListing.id == MarketPurchase.listing_id)
+            .where(MarketPurchase.account_id == who.account_id, MarketListing.status == "active")
         )
     )
     query = (
@@ -393,9 +413,13 @@ def listings(
             "status": row.status,
             "expires_at": row.expires_at,
             "mine": row.seller == who.account_id,
-            "nickname": seller.nickname if seller else "트레이너",
+            # A rotation listing has no seller; the app names it in the viewer's language.
+            "nickname": seller.nickname if seller else "" if row.seller is None else "트레이너",
             "public_id": seller.public_id if seller else "",
         }
+        if row.source == rotation.SOURCE:
+            item["rotation"] = True
+            item["bought"] = row.id in bought
         if needle:
             # Ranking needs every match before paging, so a search cannot stop early.
             ranked.append((rank, len(ranked), item))

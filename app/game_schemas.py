@@ -82,12 +82,6 @@ class LevelClaim(StrictModel):
     kind: Literal["claim_levels"]
 
 
-class RotationBuy(StrictModel):
-    kind: Literal["rotation_buy"]
-    card_id: Identifier
-    date: Annotated[str, StringConstraints(pattern=r"^\d{4}-\d{2}-\d{2}$")]
-
-
 Command = Annotated[
     Credit
     | Packs
@@ -99,7 +93,6 @@ Command = Annotated[
     | RefreshOripa
     | Preferences
     | LevelClaim
-    | RotationBuy
     | Bonus,
     Field(discriminator="kind"),
 ]

@@ -22,7 +22,6 @@ PRICED_COMMANDS = {
     "sell_bulk",
     "pull_oripa",
     "refresh_oripa",
-    "rotation_buy",
 }
 
 
