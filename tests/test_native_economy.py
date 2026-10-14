@@ -177,15 +177,28 @@ def test_sales_keep_last_card_reserved_floor_and_cheapest_finishes_first(ctx):
     result = economy.apply(
         state, {"kind": "sell_bulk", "card_ids": ["a"]}, ctx, protected={"a#holo": 2}
     )
+    # Market 300,000 a copy; half of it with the 15% bonus is 172,500 -> 180,000 on the grid.
     assert result == {
-        "tokens": 1_360_000,
+        "tokens": 720_000,
         "sold": 4,
-        "bulk": {"kinds": 1, "copies": 4, "tokens": 1_360_000},
+        "bulk": {"kinds": 1, "copies": 4, "tokens": 720_000},
     }
     assert state["cards"] == {"a": 2}
     assert state["printingCards"] == {"a#holo": 2}
-    assert state["refundedTokens"] == 1_360_000
+    assert state["refundedTokens"] == 720_000
     assert state["cardsDisenchanted"] == 4
+
+
+def test_selling_to_the_game_pays_half_the_market_value_but_at_least_one_step(ctx):
+    step = ctx.economy.quantized(1)
+    market = economy.tokens(economy.usd("a", ctx, "normal"), ctx)
+    # Half of 1,500 won is 750, which lands on the 800-won step.
+    assert economy.sale_unit("a", "normal", ctx) == ctx.economy.quantized(market // 2) == 160_000
+    assert economy.sale_unit("a", "normal", ctx, 0.15) == 180_000
+    ctx.prices["cardPrices"]["prices"]["a"] = 0.01
+    ctx.economy = economy.PriceBook(ctx)
+    # The cheapest cards are bought in bulk at one 100-won step each.
+    assert economy.sale_unit("a", "normal", ctx) == step
 
 
 def test_equal_price_finishes_keep_more_special_copy(ctx):
