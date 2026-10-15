@@ -4,7 +4,7 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app import catalogue, inventory, prices, rotation, social
+from app import catalogue, inventory, offers, prices, rotation, social
 from app.game_service import balance
 from app.models import (
     Account,
@@ -36,13 +36,24 @@ def transfer(db, account, rules, remove=None, add=None, credit=0, debit=0):
 
 
 def trade_lines(command, rules):
+    """Cards on both sides, with money allowed on one side.
+
+    Card plus money for a better card is common in real trading. Money may stand
+    in for one side's cards, but at least one card must change hands: a money-only
+    trade would just move balances between accounts.
+    """
     offered = {line.printing: line.quantity for line in command.offered}
     requested = {line.printing: line.quantity for line in command.requested}
-    if not offered or not requested:
+    give, get = command.offered_tokens, command.requested_tokens
+    if give and get:
+        raise HTTPException(422, "money_on_both_sides")
+    if not offered and not requested:
+        raise HTTPException(422, "cards_required")
+    if not (offered or give) or not (requested or get):
         raise HTTPException(422, "both_sides_required")
     for key in offered | requested:
         catalogue.validate_printing(key, rules)
-    return offered, requested
+    return offered, requested, give, get
 
 
 def check_requested(db, owner, requested):
@@ -59,19 +70,27 @@ def check_requested(db, owner, requested):
         raise HTTPException(409, "requested_cards_unavailable")
 
 
-def open_trade(db, sender, recipient, offered, requested, now, counter_of=None):
+def open_trade(db, sender, recipient, terms, now, counter_of=None):
+    offered, requested, give, get = terms
+    # The sender's cards are held; money is not (that would need a hold in the
+    # game rules). It is checked here and again when the trade is accepted.
+    if give > sender.balance:
+        raise HTTPException(409, "insufficient_balance")
     row = CardTrade(
         id=str(uuid4()),
         sender=sender.id,
         recipient=recipient.id,
         offered=offered,
         requested=requested,
+        offered_tokens=give,
+        requested_tokens=get,
         status="pending",
         version=0,
         expires_at=now + 72 * 3600,
         counter_of=counter_of,
     )
-    inventory.reserve(db, sender, row.id, offered)
+    if offered:
+        inventory.reserve(db, sender, row.id, offered)
     db.add(row)
     return row
 
@@ -82,10 +101,10 @@ def trade(db, actor, command, rules):
         other = social.public_target(db, command.target_id)
         if not social.are_friends(db, actor.id, other.account_id):
             raise HTTPException(403, "friends_required")
-        offered, requested = trade_lines(command, rules)
+        terms = trade_lines(command, rules)
         recipient = db.get(Account, other.account_id)
-        check_requested(db, recipient, requested)
-        row = open_trade(db, actor, recipient, offered, requested, now)
+        check_requested(db, recipient, terms[1])
+        row = open_trade(db, actor, recipient, terms, now)
         social.notify(db, other.account_id, "trade_request", row.id)
         return {"id": row.id}, {actor.id, other.account_id}
     row = db.get(CardTrade, str(command.target_id))
@@ -100,12 +119,12 @@ def trade(db, actor, command, rules):
         # proposal goes back the other way.
         if actor.id != row.recipient or not social.are_friends(db, row.sender, row.recipient):
             raise HTTPException(403, "recipient_required")
-        offered, requested = trade_lines(command, rules)
+        terms = trade_lines(command, rules)
         sender = db.get(Account, row.sender)
         inventory.release(db, row.id)
         db.flush()
-        check_requested(db, sender, requested)
-        counter = open_trade(db, actor, sender, offered, requested, now, counter_of=row.id)
+        check_requested(db, sender, terms[1])
+        counter = open_trade(db, actor, sender, terms, now, counter_of=row.id)
         row.status = "countered"
         row.version += 1
         social.notify(db, row.sender, "trade_countered", counter.id)
@@ -118,11 +137,18 @@ def trade(db, actor, command, rules):
             inventory.available(db, sender, row.id).get(k, 0) < n for k, n in row.offered.items()
         ):
             raise HTTPException(409, "offered_cards_unavailable")
-        inventory.reserve(db, actor, row.id, row.requested)
+        # The money was not held, so either side may have spent it since.
+        if row.offered_tokens > sender.balance:
+            raise HTTPException(409, "offered_tokens_unavailable")
+        if row.requested_tokens > actor.balance:
+            raise HTTPException(409, "insufficient_balance")
+        if row.requested:
+            inventory.reserve(db, actor, row.id, row.requested)
         inventory.release(db, row.id)
         db.flush()
-        transfer(db, sender, rules, remove=row.offered, add=row.requested)
-        transfer(db, actor, rules, remove=row.requested, add=row.offered)
+        give, get = row.offered_tokens, row.requested_tokens
+        transfer(db, sender, rules, remove=row.offered, add=row.requested, credit=get, debit=give)
+        transfer(db, actor, rules, remove=row.requested, add=row.offered, credit=give, debit=get)
         row.status = "accepted"
     elif command.action == "trade_reject":
         if actor.id != row.recipient:
@@ -226,6 +252,7 @@ def market(db, actor, command, rules):
             raise HTTPException(403, "seller_required")
         row.status, row.version = "cancelled", row.version + 1
         inventory.release(db, row.id)
+        offers.close(db, row)
         return {"id": row.id, "status": row.status}, {actor.id}
     if (
         command.action != "listing_buy"
@@ -239,23 +266,33 @@ def market(db, actor, command, rules):
     if total > actor.balance:
         raise HTTPException(409, "insufficient_balance")
     seller = db.get(Account, row.seller)
-    if inventory.available(db, seller, row.id).get(row.printing, 0) < command.quantity:
-        raise HTTPException(409, "listing_stock_inconsistent")
-    hold = db.get(Reservation, (seller.id, row.printing, row.id))
-    if hold is None or hold.quantity != row.quantity:
-        raise HTTPException(409, "listing_reservation_inconsistent")
-    hold.quantity -= command.quantity
-    row.quantity -= command.quantity
-    if hold.quantity == 0:
-        db.delete(hold)
-        row.status = "sold"
-    db.flush()
-    transfer(db, seller, rules, remove={row.printing: command.quantity}, credit=total)
-    transfer(db, actor, rules, add={row.printing: command.quantity}, debit=total)
-    row.version += 1
+    settle(db, row, seller, actor, command.quantity, total, rules)
     social.notify(db, seller.id, "listing_sold", row.id)
     social.notify(db, actor.id, "listing_bought", row.id, read=True)
     return {"id": row.id, "quantity": command.quantity, "total_tokens": total}, {
         seller.id,
         actor.id,
     }
+
+
+def settle(db, row, seller, buyer, quantity, total, rules):
+    """Move `quantity` cards of a player's listing to the buyer for `total` tokens.
+
+    Shared by buying at the asking price and by accepting a price offer. Pending
+    offers the remaining stock can no longer fill are closed.
+    """
+    if inventory.available(db, seller, row.id).get(row.printing, 0) < quantity:
+        raise HTTPException(409, "listing_stock_inconsistent")
+    hold = db.get(Reservation, (seller.id, row.printing, row.id))
+    if hold is None or hold.quantity != row.quantity:
+        raise HTTPException(409, "listing_reservation_inconsistent")
+    hold.quantity -= quantity
+    row.quantity -= quantity
+    if hold.quantity == 0:
+        db.delete(hold)
+        row.status = "sold"
+    db.flush()
+    transfer(db, seller, rules, remove={row.printing: quantity}, credit=total)
+    transfer(db, buyer, rules, add={row.printing: quantity}, debit=total)
+    row.version += 1
+    offers.close(db, row)

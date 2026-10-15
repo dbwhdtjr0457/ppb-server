@@ -39,6 +39,10 @@ class OnlineCommand(StrictModel):
         "listing_create",
         "listing_cancel",
         "listing_buy",
+        "offer_create",
+        "offer_cancel",
+        "offer_accept",
+        "offer_reject",
         "notification_read",
         "notification_read_all",
     ]
@@ -57,6 +61,9 @@ class OnlineCommand(StrictModel):
     printing: Identifier | None = None
     quantity: Annotated[int, Field(strict=True, ge=1, le=1000)] = 1
     unit_tokens: Annotated[int, Field(strict=True, ge=1, le=10**12)] | None = None
+    # Money on one side of a trade: what the sender pays, or asks the recipient to pay.
+    offered_tokens: Annotated[int, Field(strict=True, ge=0, le=10**12)] = 0
+    requested_tokens: Annotated[int, Field(strict=True, ge=0, le=10**12)] = 0
     notification_id: Annotated[int, Field(strict=True, ge=1)] | None = None
 
     @model_validator(mode="after")

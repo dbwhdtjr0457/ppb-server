@@ -11,6 +11,7 @@ from app.models import (
     CardTrade,
     Friendship,
     MarketListing,
+    MarketOffer,
     Notification,
     SocialProfile,
     UserBlock,
@@ -88,7 +89,7 @@ def notification_details(db, account_id, rows):
     `target` is only an id. Loading the trades, listings and friendships a page
     refers to in three queries keeps this off the per-row path.
     """
-    by_kind = {"trade": set(), "listing": set(), "friend": set()}
+    by_kind = {"trade": set(), "listing": set(), "friend": set(), "offer": set()}
     for row in rows:
         prefix = "listing" if row.kind == "wishlist_listing" else row.kind.split("_", 1)[0]
         if prefix in by_kind:
@@ -99,11 +100,18 @@ def notification_details(db, account_id, rows):
 
     trades = load(CardTrade, by_kind["trade"])
     friendships = load(Friendship, by_kind["friend"])
-    listings = load(MarketListing, by_kind["listing"])
+    offers = load(MarketOffer, by_kind["offer"])
+    listings = load(MarketListing, by_kind["listing"] | {o.listing_id for o in offers.values()})
+    # A price offer's other party is the buyer for the seller and the seller for the buyer.
+    offer_other = {
+        o.id: o.buyer if o.buyer != account_id else listings[o.listing_id].seller
+        for o in offers.values()
+        if o.listing_id in listings
+    }
     others = {
         r.sender if r.recipient == account_id else r.recipient
         for r in (*trades.values(), *friendships.values())
-    }
+    } | {other for other in offer_other.values() if other}
     names = (
         {
             p.account_id: p.nickname
@@ -116,7 +124,16 @@ def notification_details(db, account_id, rows):
     for row in rows:
         pair_row = trades.get(row.target) or friendships.get(row.target)
         listing = listings.get(row.target)
-        if row.kind.startswith(("trade_", "friend_")) and pair_row is not None:
+        offer = offers.get(row.target) if row.kind.startswith("offer_") else None
+        if offer is not None and offer.listing_id in listings:
+            detail = {
+                "printing": listings[offer.listing_id].printing,
+                "unit_tokens": offer.unit_tokens,
+            }
+            if offer_other.get(offer.id) in names:
+                detail["nickname"] = names[offer_other[offer.id]]
+            details[row.id] = detail
+        elif row.kind.startswith(("trade_", "friend_")) and pair_row is not None:
             other = pair_row.sender if pair_row.recipient == account_id else pair_row.recipient
             if other in names:
                 details[row.id] = {"nickname": names[other]}
