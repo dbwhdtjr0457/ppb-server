@@ -345,6 +345,7 @@ def listings(
     finish: str = "",
     sort: str = "newest",
     seller: str = "",
+    missing: bool = False,
     mine: bool = False,
     offset: Offset = 0,
     limit: Limit = 50,
@@ -405,6 +406,9 @@ def listings(
         )
     )
     needle = "".join(q.casefold().split())
+    # "Cards I don't have" means no copy of the card in any printing, as in the
+    # collection and the trade picker.
+    owned = (db.get(Account, who.account_id).state or {}).get("cards", {}) if missing else {}
     items = []
     ranked = []
     matched = 0
@@ -413,6 +417,7 @@ def listings(
         rank = search_rank(needle, card, row.printing)
         if (
             rank is None
+            or (missing and owned.get(row.printing.rsplit("#", 1)[0], 0) > 0)
             or (set_id and card.get("set_id") != set_id)
             or (tier and card.get("tier") != tier)
             or (finish and card.get("finish") != finish)

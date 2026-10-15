@@ -167,3 +167,13 @@ def test_players_listings_come_first_and_the_seller_filter_splits_them(market):
     assert [item["unit_tokens"] for item in page(sort="price")] == [300, 900, 1200]
     assert all(item.get("rotation") for item in page(seller="bot"))
     assert [item["unit_tokens"] for item in page(seller="players")] == [300]
+
+
+def test_missing_filter_keeps_only_cards_the_viewer_has_none_of(market):
+    client, _, a, b = market
+    for user, lacking in [(a, "a-2#holo"), (b, "a-1#holo")]:
+        reply = client.get("/v1/market/listings", headers=headers(user), params={"missing": "true"})
+        assert reply.status_code == 200, reply.text
+        assert [item["printing"] for item in reply.json()["items"]] == [lacking]
+    # Without the filter both cards stay listed.
+    assert len(listings(client, a)) == 2
