@@ -16,7 +16,7 @@ from app.models import (
     SocialProfile,
     UserBlock,
 )
-from app.observability import logger
+from app.observability import current_request_id, error_trace, logger
 from app.online_schemas import OnlineCommand
 from app.online_service import execute, prepare
 
@@ -354,11 +354,15 @@ def listings(
     maintenance.expire(db)
     try:
         rotation.restock(db, rules)
-    except Exception:
+    except Exception as error:
         # Browsing must not fail because today's lineup could not be drawn. The
         # periodic job retries and records the failure.
         db.rollback()
-        logger.exception("rotation restock failed")
+        logger.error(
+            "rotation restock failed request_id=%s traceback=%s",
+            current_request_id.get(),
+            error_trace(error),
+        )
     query = (
         select(MarketListing, SocialProfile)
         .outerjoin(SocialProfile, SocialProfile.account_id == MarketListing.seller)

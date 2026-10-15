@@ -1,5 +1,6 @@
 """The daily rotation: cards the server lists on the online market itself."""
 
+import logging
 import time
 
 import pytest
@@ -9,6 +10,7 @@ from test_online import mutate, online  # noqa: F401
 
 from app import maintenance, rotation
 from app.models import Account, GameEvent, MarketListing, MarketPurchase, Notification
+from app.observability import logger
 
 OFFERS = [("a-1#holo", 1200), ("a-2#holo", 900)]
 
@@ -177,3 +179,29 @@ def test_missing_filter_keeps_only_cards_the_viewer_has_none_of(market):
         assert [item["printing"] for item in reply.json()["items"]] == [lacking]
     # Without the filter both cards stay listed.
     assert len(listings(client, a)) == 2
+
+
+def test_restock_failure_keeps_market_available_and_logs_no_private_values(market, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+    from test_observability import capture
+
+    client, _, a, _ = market
+    private = "private-wallet-and-session-marker"
+
+    def broken(*_args, **_kwargs):
+        raise OperationalError("UPDATE accounts SET state=?", (private,), RuntimeError(private))
+
+    monkeypatch.setattr(rotation, "restock", broken)
+    handler = capture()
+    try:
+        reply = client.get("/v1/market/listings", headers=headers(a))
+    finally:
+        logger.removeHandler(handler)
+    assert reply.status_code == 200
+    failures = [
+        record for record in handler.records if "rotation restock failed" in record.getMessage()
+    ]
+    assert len(failures) == 1 and failures[0].exc_info is None
+    logs = "\n".join(logging.Formatter().format(record) for record in handler.records)
+    assert "OperationalError" in logs and "broken" in logs
+    assert private not in logs and "UPDATE accounts" not in logs
