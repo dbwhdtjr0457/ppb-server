@@ -4,17 +4,19 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import func, or_, select, text
 
-from app import catalogue, inventory, maintenance, social
+from app import catalogue, inventory, maintenance, rotation, social
 from app.game_api import Database, Identity, get_rules
 from app.models import (
     Account,
     CardTrade,
     Friendship,
     MarketListing,
+    MarketPurchase,
     Notification,
     SocialProfile,
     UserBlock,
 )
+from app.observability import current_request_id, error_trace, logger
 from app.online_schemas import OnlineCommand
 from app.online_service import execute, prepare
 
@@ -342,22 +344,46 @@ def listings(
     tier: str = "",
     finish: str = "",
     sort: str = "newest",
+    seller: str = "",
+    missing: bool = False,
     mine: bool = False,
     offset: Offset = 0,
     limit: Limit = 50,
     rules=Depends(get_rules),
 ):
     maintenance.expire(db)
+    try:
+        rotation.restock(db, rules)
+    except Exception as error:
+        # Browsing must not fail because today's lineup could not be drawn. The
+        # periodic job retries and records the failure.
+        db.rollback()
+        logger.error(
+            "rotation restock failed request_id=%s traceback=%s",
+            current_request_id.get(),
+            error_trace(error),
+        )
     query = (
         select(MarketListing, SocialProfile)
-        .join(SocialProfile, SocialProfile.account_id == MarketListing.seller)
+        .outerjoin(SocialProfile, SocialProfile.account_id == MarketListing.seller)
         .where(
-            MarketListing.seller.not_in(
-                select(UserBlock.other).where(UserBlock.actor == who.account_id)
-            ),
-            MarketListing.seller.not_in(
-                select(UserBlock.actor).where(UserBlock.other == who.account_id)
-            ),
+            or_(
+                MarketListing.seller.is_(None),
+                MarketListing.seller.not_in(
+                    select(UserBlock.other).where(UserBlock.actor == who.account_id)
+                )
+                & MarketListing.seller.not_in(
+                    select(UserBlock.actor).where(UserBlock.other == who.account_id)
+                ),
+            )
+        )
+    )
+    # Rotation cards this account already took its one copy of.
+    bought = set(
+        db.scalars(
+            select(MarketPurchase.listing_id)
+            .join(MarketListing, MarketListing.id == MarketPurchase.listing_id)
+            .where(MarketPurchase.account_id == who.account_id, MarketListing.status == "active")
         )
     )
     query = (
@@ -365,12 +391,28 @@ def listings(
         if mine
         else query.where(MarketListing.status == "active")
     )
+    # "bot" is the server's own rotation, "players" everything people listed.
+    if seller == "bot":
+        query = query.where(MarketListing.seller.is_(None))
+    elif seller == "players":
+        query = query.where(MarketListing.seller.is_not(None))
+    # Newest puts players' listings first: twenty rotation cards arrive at once
+    # every morning and would otherwise push every player's listing off the page.
+    # The rotation then runs from the cheapest card up.
     query = (
         query.order_by(MarketListing.unit_tokens, MarketListing.id)
         if sort == "price"
-        else query.order_by(MarketListing.created_at.desc(), MarketListing.id)
+        else query.order_by(
+            MarketListing.seller.is_(None),
+            MarketListing.created_at.desc(),
+            MarketListing.unit_tokens,
+            MarketListing.id,
+        )
     )
     needle = "".join(q.casefold().split())
+    # "Cards I don't have" means no copy of the card in any printing, as in the
+    # collection and the trade picker.
+    owned = (db.get(Account, who.account_id).state or {}).get("cards", {}) if missing else {}
     items = []
     ranked = []
     matched = 0
@@ -379,6 +421,7 @@ def listings(
         rank = search_rank(needle, card, row.printing)
         if (
             rank is None
+            or (missing and owned.get(row.printing.rsplit("#", 1)[0], 0) > 0)
             or (set_id and card.get("set_id") != set_id)
             or (tier and card.get("tier") != tier)
             or (finish and card.get("finish") != finish)
@@ -393,9 +436,13 @@ def listings(
             "status": row.status,
             "expires_at": row.expires_at,
             "mine": row.seller == who.account_id,
-            "nickname": seller.nickname if seller else "트레이너",
+            # A rotation listing has no seller; the app names it in the viewer's language.
+            "nickname": seller.nickname if seller else "" if row.seller is None else "트레이너",
             "public_id": seller.public_id if seller else "",
         }
+        if row.source == rotation.SOURCE:
+            item["rotation"] = True
+            item["bought"] = row.id in bought
         if needle:
             # Ranking needs every match before paging, so a search cannot stop early.
             ranked.append((rank, len(ranked), item))

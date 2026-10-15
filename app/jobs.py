@@ -169,6 +169,7 @@ async def loop():
 
 def expire_transactions():
     from app.maintenance import expire
+    from app.rotation import restock
 
     now = int(time.time())
     with SessionLocal() as db:
@@ -177,6 +178,8 @@ def expire_transactions():
             return
         try:
             expire(db, now)
+            # The market also restocks when someone opens it; this covers a quiet day.
+            restock(db, rules, now)
             db.execute(text("BEGIN IMMEDIATE"))
             job = db.get(ServerJob, "expiry")
             if job.owner == owner:

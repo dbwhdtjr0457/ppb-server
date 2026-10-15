@@ -34,6 +34,10 @@ def expire(db, now=None):
             ):
                 row.status, row.version = "expired", row.version + 1
                 inventory.release(db, row.id)
+                if model == MarketListing and row.seller is None:
+                    # The server's own rotation listing: nobody holds cards in it or
+                    # needs to hear that it ended.
+                    continue
                 affected = {row.seller} if model == MarketListing else {row.sender, row.recipient}
                 transaction = str(uuid4())
                 for account_id in affected:

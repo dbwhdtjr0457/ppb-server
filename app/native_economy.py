@@ -17,6 +17,9 @@ from fastapi import HTTPException
 TOKENS_PER_USD = 292_000.0
 PACK_MARGIN = 3.4
 UNKNOWN_USD = 0.05
+# Selling a spare to the game pays half the market value (CardSale.quickSaleRate in
+# the app). Full value comes from other players on the online market.
+QUICK_SALE_RATE = 0.5
 MAX_COUNTER = 10**15
 MAX_SAVE_NUMBER = ((1 << 63) - 1) // 64
 FINISHES = (
@@ -136,12 +139,14 @@ def normalize_state(state: dict, ctx) -> None:
         "coupons",
         "grantedGifts",
         "claimedLevels",
-        "rotationPurchases",
     ):
         state.setdefault(key, [])
     if not state["claimedDex"] and isinstance(state.get("completedDex"), list):
         state["claimedDex"] = list(state["completedDex"])
     state.pop("completedDex", None)
+    # The shop's daily rotation moved to the online market, which records its own
+    # purchases. The app no longer reads or writes this ledger.
+    state.pop("rotationPurchases", None)
     state.setdefault("schemaVersion", 2)
     state.setdefault("openingMode", "game")
     state.setdefault("installBaselineSet", False)
@@ -222,7 +227,7 @@ def validate_state(state: dict, ctx) -> None:
         require(key not in state or type(state[key]) is str)
     for key, allowed in (("openingMode", OPENING_MODES), ("language", LANGUAGES)):
         require(key not in state or type(state[key]) is str and state[key] in allowed)
-    for key in ("claimedDex", "completedDex", "grantedGifts", "rotationPurchases"):
+    for key in ("claimedDex", "completedDex", "grantedGifts"):
         require(key not in state or _strings(state[key]))
     require(
         "claimedLevels" not in state
@@ -622,6 +627,16 @@ def _printing_index(state):
     return result
 
 
+def sale_unit(card_id, finish, ctx, dust_bonus=0.0):
+    """One copy sold to the game: half the market value plus the dex sale bonus.
+
+    Rounded once, after both factors, and never below one 100-won step, so the
+    cheapest cards are bought in bulk at that flat step. Matches CardSale.price.
+    """
+    market = tokens(usd(card_id, ctx, finish), ctx)
+    return quantized(round_swift(float(market) * QUICK_SALE_RATE * (1 + dust_bonus)), ctx)
+
+
 def _sale_plan(state, card_id, count, ctx, protected, indexed, dust_bonus):
     spares = max(0, state["cards"].get(card_id, 0) - 1)
     owned = indexed.get(card_id, ())
@@ -637,10 +652,7 @@ def _sale_plan(state, card_id, count, ctx, protected, indexed, dust_bonus):
     for key, finish, amount in ordered:
         quantity = min(max(0, amount - protected.get(key, 0)), remaining)
         if quantity > 0:
-            unit = tokens(usd(card_id, ctx, finish), ctx)
-            if dust_bonus > 0:
-                unit = quantized(round_swift(float(unit) * (1 + dust_bonus)), ctx)
-            lines.append((key, quantity, unit))
+            lines.append((key, quantity, sale_unit(card_id, finish, ctx, dust_bonus)))
             remaining -= quantity
         if remaining <= 0:
             break

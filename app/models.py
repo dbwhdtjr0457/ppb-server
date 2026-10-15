@@ -234,7 +234,8 @@ class CardTrade(Base):
 class MarketListing(Base):
     __tablename__ = "market_listings"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    seller: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
+    # None for a listing the server puts up itself; `source` then says which kind.
+    seller: Mapped[str | None] = mapped_column(ForeignKey("accounts.id"), index=True)
     printing: Mapped[str] = mapped_column(String(160), index=True)
     quantity: Mapped[int]
     unit_tokens: Mapped[int]
@@ -242,7 +243,17 @@ class MarketListing(Base):
     version: Mapped[int] = mapped_column(default=0)
     expires_at: Mapped[int]
     created_at: Mapped[int]
+    source: Mapped[str | None] = mapped_column(String(20), default=None)
     __table_args__ = (CheckConstraint("quantity >= 0"), CheckConstraint("unit_tokens > 0"))
+
+
+class MarketPurchase(Base):
+    """Who already bought from a server listing. Each account gets one copy."""
+
+    __tablename__ = "market_purchases"
+    listing_id: Mapped[str] = mapped_column(ForeignKey("market_listings.id"), primary_key=True)
+    account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), primary_key=True)
+    created_at: Mapped[int]
 
 
 class OnlineReceipt(Base):

@@ -4,9 +4,16 @@ from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from app import catalogue, inventory, prices, social
+from app import catalogue, inventory, prices, rotation, social
 from app.game_service import balance
-from app.models import Account, CardTrade, MarketListing, Reservation, SocialProfile
+from app.models import (
+    Account,
+    CardTrade,
+    MarketListing,
+    MarketPurchase,
+    Reservation,
+    SocialProfile,
+)
 
 
 def transfer(db, account, rules, remove=None, add=None, credit=0, debit=0):
@@ -136,6 +143,55 @@ def trade(db, actor, command, rules):
     return {"id": row.id, "status": row.status}, {row.sender, row.recipient}
 
 
+def notify_wishlists(db, row):
+    """Tell everyone still short of this card on their wishlist that it is for sale."""
+    card, finish = row.printing.rsplit("#", 1)
+    for profile in db.scalars(select(SocialProfile).where(SocialProfile.account_id != row.seller)):
+        if row.seller is not None and social.blocked(db, row.seller, profile.account_id):
+            continue
+        account = db.get(Account, profile.account_id)
+        for wish in profile.wishlist:
+            count = (
+                inventory.counts(account.state).get(row.printing, 0)
+                if wish["finish"]
+                else account.state.get("cards", {}).get(card, 0)
+            )
+            if (
+                wish["card_id"] == card
+                and (not wish["finish"] or wish["finish"] == finish)
+                and count < wish["target"]
+            ):
+                social.notify(db, profile.account_id, "wishlist_listing", row.id)
+                break
+
+
+def buy_rotation(db, actor, row, command, rules, now):
+    """One copy of a rotation card. The payment goes to nobody.
+
+    Its price never changes during the day, so a buyer is not turned away because
+    someone else bought a copy since they loaded the market (no version check).
+    """
+    if command.action != "listing_buy":
+        raise HTTPException(403, "seller_required")
+    if row.status != "active" or row.expires_at <= now:
+        raise HTTPException(409, "listing_unavailable")
+    if command.unit_tokens != row.unit_tokens:
+        raise HTTPException(409, "price_or_stock_changed")
+    if command.quantity != 1 or db.get(MarketPurchase, (row.id, actor.id)) is not None:
+        raise HTTPException(409, "rotation_limit_reached")
+    if row.unit_tokens > actor.balance:
+        raise HTTPException(409, "insufficient_balance")
+    row.quantity -= 1
+    if row.quantity == 0:
+        row.status = "sold"
+    row.version += 1
+    db.add(MarketPurchase(listing_id=row.id, account_id=actor.id, created_at=now))
+    db.flush()
+    transfer(db, actor, rules, add={row.printing: 1}, debit=row.unit_tokens)
+    social.notify(db, actor.id, "listing_bought", row.id, read=True)
+    return {"id": row.id, "quantity": 1, "total_tokens": row.unit_tokens}, {actor.id}
+
+
 def market(db, actor, command, rules):
     now = int(time.time())
     if command.action == "listing_create":
@@ -155,30 +211,13 @@ def market(db, actor, command, rules):
         )
         inventory.reserve(db, actor, row.id, {row.printing: row.quantity})
         db.add(row)
-        card, finish = row.printing.rsplit("#", 1)
-        for profile in db.scalars(
-            select(SocialProfile).where(SocialProfile.account_id != actor.id)
-        ):
-            if social.blocked(db, actor.id, profile.account_id):
-                continue
-            account = db.get(Account, profile.account_id)
-            for wish in profile.wishlist:
-                count = (
-                    inventory.counts(account.state).get(row.printing, 0)
-                    if wish["finish"]
-                    else account.state.get("cards", {}).get(card, 0)
-                )
-                if (
-                    wish["card_id"] == card
-                    and (not wish["finish"] or wish["finish"] == finish)
-                    and count < wish["target"]
-                ):
-                    social.notify(db, profile.account_id, "wishlist_listing", row.id)
-                    break
+        notify_wishlists(db, row)
         return {"id": row.id}, {actor.id}
     row = db.get(MarketListing, str(command.target_id))
     if row is None:
         raise HTTPException(404, "listing_not_found")
+    if row.source == rotation.SOURCE:
+        return buy_rotation(db, actor, row, command, rules, now)
     social.guard_version(row, command.target_version)
     if row.status != "active" or row.expires_at <= now:
         raise HTTPException(409, "listing_unavailable")

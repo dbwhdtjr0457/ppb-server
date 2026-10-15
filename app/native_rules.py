@@ -158,6 +158,12 @@ class PythonRules:
         card_price_digest(ctx)
         oripa_shelf(ctx)
 
+    def rotation_offers(self, rng, prices=None):
+        """A fresh rotation lineup for the online market, priced from `prices`."""
+        from app import native_rotation as rotation
+
+        return rotation.offers(self._context(prices), rng)
+
     @staticmethod
     def _quote(state, command, ctx, protected):
         from app import native_economy as economy
@@ -166,10 +172,6 @@ class PythonRules:
         kind = command.get("quote_kind", command["kind"])
         if kind == "pull_oripa":
             return opening.oripa_price(state, ctx)
-        if kind == "rotation_buy":
-            from app import native_rotation as rotation
-
-            return rotation.price(command.get("card_id", ""), ctx)
         if kind == "refresh_oripa":
             return 0
         result = economy.apply(
@@ -205,10 +207,6 @@ class PythonRules:
             from app import native_levels as levels
 
             return levels.claim_levels(state, command, ctx)
-        if kind == "rotation_buy":
-            from app import native_rotation as rotation
-
-            return rotation.buy(state, command, ctx, quoted_tokens=quoted_tokens)
         if kind in {
             "valuation",
             "transfer",
