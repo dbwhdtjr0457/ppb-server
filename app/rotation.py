@@ -1,9 +1,10 @@
 """The daily rotation: cards the server itself lists on the online market.
 
-Every day at 00:00 UTC (09:00 in Korea) yesterday's lineup comes down and eight
-new cards go up with a few copies each. An account can buy one copy of each card,
-so the first player online cannot take a whole lineup. The server is the seller:
-no reservation, no seller wallet, and no sale or expiry notice for anyone.
+Every day at 00:00 UTC (09:00 in Korea) yesterday's lineup comes down and twenty
+new cards go up (native_rotation.lineup) with a few copies each. An account can
+buy one copy of each card, so the first player online cannot take a whole lineup.
+The server is the seller: no reservation, no seller wallet, and no sale or
+expiry notice for anyone.
 """
 
 import random

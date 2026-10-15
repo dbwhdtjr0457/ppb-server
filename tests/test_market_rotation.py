@@ -142,3 +142,28 @@ def test_blocking_someone_does_not_hide_the_rotation(market):
     reply, _ = mutate(client, a, "friends", "block", target_id=second["public_id"])
     assert reply.status_code == 200, reply.text
     assert len(listings(client, a)) == 2
+
+
+def test_players_listings_come_first_and_the_seller_filter_splits_them(market):
+    client, sessions, a, b = market
+    reply, _ = mutate(
+        client, a, "market/listings", "listing_create", printing="a-1#holo", unit_tokens=300
+    )
+    assert reply.status_code == 200, reply.text
+    with sessions() as db:
+        # Listed long before this morning's rotation went up.
+        db.get(MarketListing, reply.json()["result"]["id"]).created_at = 1
+        db.commit()
+
+    def page(**query):
+        reply = client.get("/v1/market/listings", headers=headers(b), params=query)
+        assert reply.status_code == 200, reply.text
+        return reply.json()["items"]
+
+    newest = page()
+    # The player's listing leads although the rotation is newer.
+    assert [item.get("rotation", False) for item in newest] == [False, True, True]
+    assert [item["unit_tokens"] for item in newest[1:]] == sorted(u for _, u in OFFERS)
+    assert [item["unit_tokens"] for item in page(sort="price")] == [300, 900, 1200]
+    assert all(item.get("rotation") for item in page(seller="bot"))
+    assert [item["unit_tokens"] for item in page(seller="players")] == [300]

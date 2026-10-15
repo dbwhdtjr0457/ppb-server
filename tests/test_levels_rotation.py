@@ -68,12 +68,33 @@ def real_context():
 def test_rotation_lineup_follows_the_tier_plan(real_context):
     picked = rotation.lineup(real_context, random.Random(7))
     tiers = [real_context.cards_by_id[card_id]["tier"] for card_id in picked]
-    assert len(picked) == len(set(picked)) == 8
-    assert tiers[0] in rotation.TOP
-    assert all(tier in rotation.MIDDLE for tier in tiers[1:4])
-    assert all(tier in rotation.LOW for tier in tiers[4:])
+    assert len(picked) == len(set(picked)) == 20
+    assert all(tier in rotation.TOP for tier in tiers[:4])
+    assert all(tier in rotation.MIDDLE for tier in tiers[4:12])
+    assert all(tier in rotation.LOW for tier in tiers[12:])
     # Drawn by the server, not derived from the date: another draw differs.
     assert rotation.lineup(real_context, random.Random(8)) != picked
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_rotation_lineup_spreads_over_sets_and_prices(real_context, seed):
+    picked = rotation.lineup(real_context, random.Random(seed))
+    sets = [real_context.cards_by_id[card_id]["set_id"] for card_id in picked]
+    assert len(set(sets)) == len(sets), "two cards from one set"
+    start = 0
+    for tiers, count in rotation.PLAN:
+        pool = sorted(
+            rotation.market(card_id, real_context)
+            for card_id, card in real_context.cards_by_id.items()
+            if card["tier"] in tiers
+        )
+        values = [
+            rotation.market(card_id, real_context) for card_id in picked[start : start + count]
+        ]
+        # One card per price band, cheapest band first: the group spans its tier's prices.
+        assert values == sorted(values)
+        assert values[0] <= pool[len(pool) // count] and values[-1] >= pool[-len(pool) // count]
+        start += count
 
 
 def test_rotation_price_beats_the_best_sale(real_context):

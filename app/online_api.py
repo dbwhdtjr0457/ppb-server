@@ -344,6 +344,7 @@ def listings(
     tier: str = "",
     finish: str = "",
     sort: str = "newest",
+    seller: str = "",
     mine: bool = False,
     offset: Offset = 0,
     limit: Limit = 50,
@@ -385,10 +386,23 @@ def listings(
         if mine
         else query.where(MarketListing.status == "active")
     )
+    # "bot" is the server's own rotation, "players" everything people listed.
+    if seller == "bot":
+        query = query.where(MarketListing.seller.is_(None))
+    elif seller == "players":
+        query = query.where(MarketListing.seller.is_not(None))
+    # Newest puts players' listings first: twenty rotation cards arrive at once
+    # every morning and would otherwise push every player's listing off the page.
+    # The rotation then runs from the cheapest card up.
     query = (
         query.order_by(MarketListing.unit_tokens, MarketListing.id)
         if sort == "price"
-        else query.order_by(MarketListing.created_at.desc(), MarketListing.id)
+        else query.order_by(
+            MarketListing.seller.is_(None),
+            MarketListing.created_at.desc(),
+            MarketListing.unit_tokens,
+            MarketListing.id,
+        )
     )
     needle = "".join(q.casefold().split())
     items = []
