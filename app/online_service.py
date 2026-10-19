@@ -46,11 +46,14 @@ def journal(db, account, who, command, result, before, version):
     )
 
 
+def command_fingerprint(device, payload):
+    canonical = json.dumps({"device": device, "command": payload}, sort_keys=True)
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
 def execute(db, who, command, rules):
-    canonical = json.dumps(
-        {"device": who.device_id, "command": command.model_dump(mode="json")}, sort_keys=True
-    )
-    fingerprint = hashlib.sha256(canonical.encode()).hexdigest()
+    payload = command.model_dump(mode="json")
+    fingerprint = command_fingerprint(who.device_id, payload)
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         if who.session_hash:
@@ -61,7 +64,20 @@ def execute(db, who, command, rules):
         receipt = db.get(OnlineReceipt, (actor.id, str(command.request_id)))
         if receipt:
             if receipt.fingerprint != fingerprint:
-                raise HTTPException(409, "idempotency_key_reused")
+                # Before migration 0009 these default-zero fields did not exist
+                # in the canonical command. Keep committed pre-upgrade requests
+                # recoverable without permitting any changed money or other terms.
+                legacy = {
+                    key: value
+                    for key, value in payload.items()
+                    if key not in {"offered_tokens", "requested_tokens"}
+                }
+                if (
+                    command.offered_tokens
+                    or command.requested_tokens
+                    or receipt.fingerprint != command_fingerprint(who.device_id, legacy)
+                ):
+                    raise HTTPException(409, "idempotency_key_reused")
             response = {"result": receipt.result, "snapshot": snapshot(actor, db), "replayed": True}
             db.rollback()
             return response
