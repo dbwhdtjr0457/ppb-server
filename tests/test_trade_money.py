@@ -17,19 +17,43 @@ def propose(client, user, friend, **fields):
 
 
 def accept(client, user, trade_id):
-    version = next(
-        item["version"]
+    terms = next(
+        item
         for item in client.get("/v1/trades", headers=headers(user)).json()["items"]
         if item["id"] == trade_id
     )
     return mutate(
-        client, user, "trades", "trade_accept", target_id=trade_id, target_version=version
+        client,
+        user,
+        "trades",
+        "trade_accept",
+        target_id=trade_id,
+        target_version=terms["version"],
+        offered_tokens=terms["offered_tokens"],
+        requested_tokens=terms["requested_tokens"],
     )[0]
 
 
 def accounts(sessions, *users):
     with sessions() as db:
         return [db.get(Account, user["account_id"]) for user in users]
+
+
+@pytest.mark.parametrize("money", ["offered_tokens", "requested_tokens"])
+def test_acceptance_requires_the_displayed_money_terms(online, money):  # noqa: F811
+    client, _, a, b = online
+    _, second = connect(client, a, b)
+    trade_id = propose(client, a, second, offered=[A1], requested=[A2], **{money: 3000}).json()[
+        "result"
+    ]["id"]
+    before = [client.get("/v1/state", headers=headers(user)).json() for user in (a, b)]
+    for fields in ({}, {money: 2999}):
+        reply, _ = mutate(
+            client, b, "trades", "trade_accept", target_id=trade_id, target_version=0, **fields
+        )
+        assert reply.status_code == 409 and reply.json()["detail"] == "trade_terms_changed"
+        assert [client.get("/v1/state", headers=headers(user)).json() for user in (a, b)] == before
+    assert accept(client, b, trade_id).status_code == 200
 
 
 @pytest.mark.parametrize(

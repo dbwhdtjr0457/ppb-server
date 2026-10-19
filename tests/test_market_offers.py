@@ -1,5 +1,7 @@
 """Price offers on players' listings: below the asking price, at least half of it."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 from sqlalchemy import select
 from test_auth import Rules, auth, headers, registered  # noqa: F401
 from test_online import mutate, online  # noqa: F401
@@ -7,6 +9,62 @@ from test_trade_money import spend
 
 from app import maintenance
 from app.models import Account, MarketListing, MarketOffer
+
+
+def test_acceptance_replay_and_second_attempt_do_not_pay_twice(online):  # noqa: F811
+    client, sessions, a, b = online
+    listing = list_card(client, a, quantity=1)
+    offer_id = offer(client, b, listing, 800).json()["result"]["id"]
+    reply, body = mutate(
+        client, a, "market/offers", "offer_accept", target_id=offer_id, target_version=0
+    )
+    assert reply.status_code == 200
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        replies = list(
+            pool.map(
+                lambda _: client.post("/v1/market/offers", headers=headers(a), json=body), range(2)
+            )
+        )
+    assert all(r.status_code == 200 and r.json()["replayed"] for r in replies)
+    again, _ = mutate(
+        client, a, "market/offers", "offer_accept", target_id=offer_id, target_version=1
+    )
+    assert again.status_code == 409
+    with sessions() as db:
+        assert db.get(Account, a["account_id"]).balance == 10800
+        assert db.get(Account, b["account_id"]).balance == 9200
+        assert db.get(Account, b["account_id"]).state["printingCards"]["a-1#holo"] == 1
+
+
+def test_offer_settlement_failure_preserves_money_cards_and_pending_offer(online, monkeypatch):  # noqa: F811
+    from fastapi import HTTPException
+
+    from app import commerce
+
+    client, sessions, a, b = online
+    listing = list_card(client, a, quantity=1)
+    offer_id = offer(client, b, listing, 800).json()["result"]["id"]
+    before = [client.get("/v1/state", headers=headers(user)).json() for user in (a, b)]
+    original = commerce.transfer
+    calls = []
+
+    def fail_buyer(*args, **kwargs):
+        calls.append(True)
+        if len(calls) == 2:
+            raise HTTPException(503, "injected_failure")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(commerce, "transfer", fail_buyer)
+    reply, body = mutate(
+        client, a, "market/offers", "offer_accept", target_id=offer_id, target_version=0
+    )
+    assert reply.status_code == 503
+    assert [client.get("/v1/state", headers=headers(user)).json() for user in (a, b)] == before
+    with sessions() as db:
+        assert db.get(MarketOffer, offer_id).status == "pending"
+        assert db.get(MarketListing, listing).quantity == 1
+    monkeypatch.setattr(commerce, "transfer", original)
+    assert client.post("/v1/market/offers", headers=headers(a), json=body).status_code == 200
 
 
 def list_card(client, seller, quantity=2, unit=1000):

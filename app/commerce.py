@@ -113,6 +113,13 @@ def trade(db, actor, command, rules):
     social.guard_version(row, command.target_version)
     if row.status != "pending" or row.expires_at <= now:
         raise HTTPException(409, "trade_unavailable")
+    # Older apps omit money from both the confirmation and the accept request.
+    # Require the exact displayed terms before moving either participant's money.
+    if command.action == "trade_accept" and (
+        command.offered_tokens != row.offered_tokens
+        or command.requested_tokens != row.requested_tokens
+    ):
+        raise HTTPException(409, "trade_terms_changed")
     if command.action == "trade_counter":
         # The recipient answers with changed cards instead of only accepting or rejecting.
         # The original closes as countered, releasing the sender's held cards, and a new
