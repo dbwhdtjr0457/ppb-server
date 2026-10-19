@@ -22,7 +22,7 @@ def test_upgrade_downgrade_upgrade(tmp_path):
     with sqlite3.connect(path) as connection:
         assert (
             connection.execute("select version_num from alembic_version").fetchone()[0]
-            == "20261014_0008"
+            == "20261015_0009"
         )
         assert connection.execute("select count(*) from accounts").fetchone()[0] == 0
         profiles = {row[1]: row for row in connection.execute("PRAGMA table_info(social_profiles)")}
@@ -40,6 +40,11 @@ def test_upgrade_downgrade_upgrade(tmp_path):
         assert listings["seller"][3] == 0 and "source" in listings
         purchases = [row[1] for row in connection.execute("PRAGMA table_info(market_purchases)")]
         assert purchases == ["listing_id", "account_id", "created_at"]
+        # Trades carry money on one side; existing trades start at zero.
+        trades = {row[1]: row for row in connection.execute("PRAGMA table_info(card_trades)")}
+        assert trades["offered_tokens"][3] == 1 and trades["requested_tokens"][3] == 1
+        offers = [row[1] for row in connection.execute("PRAGMA table_info(market_offers)")]
+        assert offers[:4] == ["id", "listing_id", "buyer", "quantity"]
 
     # A fully migrated database must pass the actual readiness handler, not only
     # schema inspection. Otherwise a new migration can leave /ready pinned behind.
@@ -49,7 +54,7 @@ def test_upgrade_downgrade_upgrade(tmp_path):
     with Session(engine) as session:
         assert ready(session)["status"] == "ready"
     with sqlite3.connect(path) as connection:
-        connection.execute("UPDATE alembic_version SET version_num='20261008_0007'")
+        connection.execute("UPDATE alembic_version SET version_num='20261014_0008'")
     with Session(engine) as session, pytest.raises(HTTPException) as error:
         ready(session)
     assert error.value.status_code == 503

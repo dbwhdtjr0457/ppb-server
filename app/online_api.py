@@ -11,6 +11,7 @@ from app.models import (
     CardTrade,
     Friendship,
     MarketListing,
+    MarketOffer,
     MarketPurchase,
     Notification,
     SocialProfile,
@@ -327,6 +328,8 @@ def trades(db: Database, who: Identity, offset: Offset = 0, limit: Limit = 50):
                 "public_id": other.public_id if other else "",
                 "offered": row.offered,
                 "requested": row.requested,
+                "offered_tokens": row.offered_tokens,
+                "requested_tokens": row.requested_tokens,
                 "status": row.status,
                 "expires_at": row.expires_at,
                 "counter_of": row.counter_of,
@@ -378,6 +381,15 @@ def listings(
             )
         )
     )
+    # This account's open price offer on each listing, so the app can show it.
+    my_offers = {
+        offer.listing_id: offer
+        for offer in db.scalars(
+            select(MarketOffer).where(
+                MarketOffer.buyer == who.account_id, MarketOffer.status == "pending"
+            )
+        )
+    }
     # Rotation cards this account already took its one copy of.
     bought = set(
         db.scalars(
@@ -443,6 +455,14 @@ def listings(
         if row.source == rotation.SOURCE:
             item["rotation"] = True
             item["bought"] = row.id in bought
+        if offer := my_offers.get(row.id):
+            item["my_offer"] = {
+                "id": offer.id,
+                "version": offer.version,
+                "quantity": offer.quantity,
+                "unit_tokens": offer.unit_tokens,
+                "expires_at": offer.expires_at,
+            }
         if needle:
             # Ranking needs every match before paging, so a search cannot stop early.
             ranked.append((rank, len(ranked), item))
@@ -460,6 +480,60 @@ def listings(
         "items": items[:limit],
         "revision": db.get(Account, who.account_id).revision,
         "next_offset": offset + limit if len(items) > limit else None,
+    }
+
+
+@router.get("/market/offers")
+def market_offers(
+    db: Database,
+    who: Identity,
+    role: str = "received",
+    offset: Offset = 0,
+    limit: Limit = 50,
+    rules=Depends(get_rules),
+):
+    """Open offers on my listings (`received`), or every offer I sent (`sent`).
+
+    Sent offers keep their outcome (accepted, rejected, expired) so the buyer can
+    see what happened; received ones are only those still waiting for an answer.
+    """
+    maintenance.expire(db)
+    query = select(MarketOffer, MarketListing).join(
+        MarketListing, MarketListing.id == MarketOffer.listing_id
+    )
+    if role == "sent":
+        # Offers still waiting for an answer first, then the newest outcomes.
+        query = query.where(
+            MarketOffer.buyer == who.account_id, MarketOffer.status != "replaced"
+        ).order_by(MarketOffer.status != "pending", MarketOffer.created_at.desc(), MarketOffer.id)
+    else:
+        query = query.where(
+            MarketListing.seller == who.account_id, MarketOffer.status == "pending"
+        ).order_by(MarketOffer.created_at.desc(), MarketOffer.id)
+    rows = db.execute(query.offset(offset).limit(limit + 1)).all()
+    items = []
+    for offer, listing in rows[:limit]:
+        other_id = listing.seller if role == "sent" else offer.buyer
+        other = db.get(SocialProfile, other_id) if other_id else None
+        items.append(
+            {
+                **catalogue.describe(listing.printing, rules),
+                "id": offer.id,
+                "version": offer.version,
+                "listing_id": listing.id,
+                "listing_unit_tokens": listing.unit_tokens,
+                "quantity": offer.quantity,
+                "unit_tokens": offer.unit_tokens,
+                "status": offer.status,
+                "expires_at": offer.expires_at,
+                "created_at": offer.created_at,
+                "nickname": other.nickname if other else "트레이너",
+            }
+        )
+    return {
+        "items": items,
+        "revision": db.get(Account, who.account_id).revision,
+        "next_offset": offset + limit if len(rows) > limit else None,
     }
 
 
@@ -488,6 +562,7 @@ def search_rank(needle, card, printing):
 @router.post("/notifications")
 @router.post("/trades")
 @router.post("/market/listings")
+@router.post("/market/offers")
 def mutate(
     body: OnlineCommand, request: Request, db: Database, who: Identity, rules=Depends(get_rules)
 ):
@@ -513,6 +588,7 @@ def mutate(
         "trade_counter",
     }
     allowed["listings"] = {"listing_create", "listing_cancel", "listing_buy"}
+    allowed["offers"] = {"offer_create", "offer_cancel", "offer_accept", "offer_reject"}
     if body.action not in allowed[request.url.path.rsplit("/", 1)[-1]]:
         raise HTTPException(422, "action_route_mismatch")
     maintenance.expire(db)

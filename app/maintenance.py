@@ -3,8 +3,16 @@ from uuid import uuid4
 
 from sqlalchemy import select, text
 
-from app import inventory, social
-from app.models import Account, CardTrade, Friendship, GameEvent, MarketListing, utcnow
+from app import inventory, offers, social
+from app.models import (
+    Account,
+    CardTrade,
+    Friendship,
+    GameEvent,
+    MarketListing,
+    MarketOffer,
+    utcnow,
+)
 
 
 def expire(db, now=None):
@@ -17,6 +25,7 @@ def expire(db, now=None):
             (Friendship, "pending"),
             (CardTrade, "pending"),
             (MarketListing, "active"),
+            (MarketOffer, "pending"),
         ]
     )
     db.rollback()
@@ -34,6 +43,8 @@ def expire(db, now=None):
             ):
                 row.status, row.version = "expired", row.version + 1
                 inventory.release(db, row.id)
+                if model == MarketListing:
+                    offers.close(db, row)
                 if model == MarketListing and row.seller is None:
                     # The server's own rotation listing: nobody holds cards in it or
                     # needs to hear that it ended.
@@ -60,6 +71,8 @@ def expire(db, now=None):
                             rules_version="online-v1",
                         )
                     )
+        # After the listings above, so offers on a listing that just ended close once.
+        offers.expire(db, now)
         db.commit()
     except BaseException:
         db.rollback()

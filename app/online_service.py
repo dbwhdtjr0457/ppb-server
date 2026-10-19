@@ -77,6 +77,10 @@ def execute(db, who, command, rules):
             from app.commerce import market
 
             result, affected = market(db, actor, command, rules)
+        elif command.action.startswith("offer_"):
+            from app.offers import handle
+
+            result, affected = handle(db, actor, command, rules)
         else:
             result, affected = social.mutate(db, actor, command, rules)
         for account_id in sorted(affected):

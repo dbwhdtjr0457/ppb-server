@@ -229,6 +229,10 @@ class CardTrade(Base):
     expires_at: Mapped[int]
     # The trade this one answers with changed cards, if it is a counter-offer.
     counter_of: Mapped[str | None] = mapped_column(String(36), default=None)
+    # Money added to one side: the sender pays offered_tokens or asks for
+    # requested_tokens, never both. Checked at proposal and acceptance, not held.
+    offered_tokens: Mapped[int] = mapped_column(default=0)
+    requested_tokens: Mapped[int] = mapped_column(default=0)
 
 
 class MarketListing(Base):
@@ -254,6 +258,26 @@ class MarketPurchase(Base):
     listing_id: Mapped[str] = mapped_column(ForeignKey("market_listings.id"), primary_key=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), primary_key=True)
     created_at: Mapped[int]
+
+
+class MarketOffer(Base):
+    """A buyer's price for a player's listing, below the asking price.
+
+    The seller accepts (the sale runs at this price) or rejects it. The buyer's
+    money is not held; acceptance checks that the buyer can still pay.
+    """
+
+    __tablename__ = "market_offers"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    listing_id: Mapped[str] = mapped_column(ForeignKey("market_listings.id"), index=True)
+    buyer: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
+    quantity: Mapped[int]
+    unit_tokens: Mapped[int]
+    status: Mapped[str] = mapped_column(String(20))
+    version: Mapped[int] = mapped_column(default=0)
+    expires_at: Mapped[int]
+    created_at: Mapped[int]
+    __table_args__ = (CheckConstraint("quantity >= 1"), CheckConstraint("unit_tokens > 0"))
 
 
 class OnlineReceipt(Base):
