@@ -1,3 +1,4 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from uuid import uuid4
@@ -8,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
 from app import admin
-from app.auth_service import digest, hasher, issue_link_code, reset_password
+from app.auth_service import SESSION_SECONDS, digest, hasher, issue_link_code, reset_password
 from app.database import Base, get_db, make_engine
 from app.game_api import get_rules
 from app.game_service import initial_state
@@ -163,6 +164,39 @@ def test_logout_expiry_and_revocation(auth):
     b = client.post("/auth/login", json=credentials()).json()
     assert client.post("/auth/logout-all", headers=headers(a)).status_code == 204
     assert client.get("/v1/state", headers=headers(b)).status_code == 401
+
+
+def test_sessions_last_a_year_and_slide_forward_while_used(auth):
+    client, sessions = auth
+    user = registered(client)
+    now = int(time.time())
+    assert user["expires_at"] >= now + SESSION_SECONDS - 60
+    token = digest(user["access_token"])
+
+    def expiry():
+        with sessions() as db:
+            return db.get(LoginSession, token).expires_at
+
+    def set_expiry(value):
+        with sessions() as db:
+            db.get(LoginSession, token).expires_at = value
+            db.commit()
+
+    # A session issued under the old seven-day lifetime is renewed on its next request.
+    set_expiry(now + 3 * 86400)
+    assert client.get("/v1/state", headers=headers(user)).status_code == 200
+    assert expiry() >= now + SESSION_SECONDS - 60
+
+    # With more than half the lifetime left, a request writes nothing.
+    untouched = now + SESSION_SECONDS - 86400
+    set_expiry(untouched)
+    assert client.get("/v1/state", headers=headers(user)).status_code == 200
+    assert expiry() == untouched
+
+    # An expired session is not revived by trying again.
+    set_expiry(now - 1)
+    assert client.get("/v1/state", headers=headers(user)).status_code == 401
+    assert expiry() == now - 1
 
 
 def test_password_change_and_operator_reset_revoke_all_sessions(auth):

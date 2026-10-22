@@ -15,6 +15,7 @@ from argon2.exceptions import InvalidHashError, VerificationError
 from email_validator import EmailNotValidError, validate_email
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy import delete, select, text, update
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -30,7 +31,14 @@ from app.models import (
     RecoveryCode,
 )
 
-SESSION_SECONDS = 7 * 24 * 60 * 60
+# A session lasts a year and slides forward while the app keeps using it, so a
+# Mac that runs the app never has to sign in again. Logging out, changing or
+# resetting the password and signing in again on the same device still revoke
+# it at once. With a fixed seven days, players were signed out every week.
+SESSION_SECONDS = 365 * 24 * 60 * 60
+# Extend only once less than half the lifetime is left, so a session row is
+# written about twice a year rather than on every request.
+SESSION_RENEW_BELOW = SESSION_SECONDS // 2
 PASSWORD_MIN_LENGTH = 8
 PASSWORD_MAX_LENGTH = 128
 hasher = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
@@ -131,9 +139,30 @@ def identity(
     require_session(db, who)
     if x_ppb_account_id is not None and str(x_ppb_account_id) != who.account_id:
         raise HTTPException(403, "account_mismatch")
+    renew_session(db, session)
     # Game commands take a fresh snapshot, then recheck inputs under the write lock.
     db.rollback()
     return who
+
+
+def renew_session(db: Session, session: LoginSession):
+    """Push a valid session's expiry a full lifetime ahead once half of it is used.
+
+    Sessions created before the lifetime grew (seven days) are renewed on their
+    first request. A busy database must not fail the request; the next one retries.
+    """
+    now = int(time.time())
+    if session.expires_at - now >= SESSION_RENEW_BELOW:
+        return
+    try:
+        db.execute(
+            update(LoginSession)
+            .where(LoginSession.token_hash == session.token_hash, LoginSession.revoked.is_(False))
+            .values(expires_at=now + SESSION_SECONDS)
+        )
+        db.commit()
+    except OperationalError:
+        db.rollback()
 
 
 def rate_limit(db: Session, email: str, address: str):
