@@ -10,7 +10,7 @@ from collections.abc import Mapping
 
 from fastapi import HTTPException
 
-PERK_CAPS = {"tokenGain": 0.25, "packDiscount": 0.15, "dustBonus": 0.15, "hitOdds": 0.20}
+PERK_CAPS = {"tokenGain": 0.40, "packDiscount": 0.15, "dustBonus": 0.15, "hitOdds": 0.20}
 TIER_ORDER = (
     "E",
     "C",
