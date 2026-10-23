@@ -22,7 +22,7 @@ def test_upgrade_downgrade_upgrade(tmp_path):
     with sqlite3.connect(path) as connection:
         assert (
             connection.execute("select version_num from alembic_version").fetchone()[0]
-            == "20261015_0009"
+            == "20261023_0010"
         )
         assert connection.execute("select count(*) from accounts").fetchone()[0] == 0
         profiles = {row[1]: row for row in connection.execute("PRAGMA table_info(social_profiles)")}
@@ -45,6 +45,17 @@ def test_upgrade_downgrade_upgrade(tmp_path):
         assert trades["offered_tokens"][3] == 1 and trades["requested_tokens"][3] == 1
         offers = [row[1] for row in connection.execute("PRAGMA table_info(market_offers)")]
         assert offers[:4] == ["id", "listing_id", "buyer", "quantity"]
+        # Price history is keyed by series and day without a rowid.
+        points = [row[1] for row in connection.execute("PRAGMA table_info(price_points)")]
+        assert points == ["kind", "item", "day", "usd"]
+        assert (
+            connection.execute("select sql from sqlite_master where name='price_points'")
+            .fetchone()[0]
+            .rstrip()
+            .endswith("WITHOUT ROWID")
+        )
+        days = [row[1] for row in connection.execute("PRAGMA table_info(price_days)")]
+        assert days == ["day", "snapshot", "since", "moves", "created_at"]
 
     # A fully migrated database must pass the actual readiness handler, not only
     # schema inspection. Otherwise a new migration can leave /ready pinned behind.
@@ -54,7 +65,7 @@ def test_upgrade_downgrade_upgrade(tmp_path):
     with Session(engine) as session:
         assert ready(session)["status"] == "ready"
     with sqlite3.connect(path) as connection:
-        connection.execute("UPDATE alembic_version SET version_num='20261014_0008'")
+        connection.execute("UPDATE alembic_version SET version_num='20261015_0009'")
     with Session(engine) as session, pytest.raises(HTTPException) as error:
         ready(session)
     assert error.value.status_code == 503

@@ -11,9 +11,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import text
+from sqlalchemy import select, text
 
-from app import prices
+from app import price_history, prices
 from app.config import settings
 from app.database import SessionLocal
 from app.models import PriceSnapshot, ServerJob
@@ -142,6 +142,9 @@ def refresh_prices():
                 return
             if db.get(PriceSnapshot, version) is None:
                 db.add(PriceSnapshot(id=version, data=data))
+            if row.active_snapshot != version:
+                db.flush()
+                price_history.record(db, previous, candidate, version)
             row.active_snapshot, row.error = version, None
             row.last_success = int(time.time())
             row.next_run, row.lease_until, row.owner = next_daily(row.last_success), 0, None
@@ -156,8 +159,51 @@ def refresh_prices():
             db.commit()
 
 
+def backfill_history():
+    """Build the price history from stored snapshots once, under the price job's lease.
+
+    Holding the same lease keeps a daily refresh from activating a snapshot halfway through.
+    """
+    with SessionLocal() as db:
+        if price_history.recorded(db):
+            return
+    now = int(time.time())
+    with SessionLocal() as db:
+        db.execute(text("BEGIN IMMEDIATE"))
+        row = db.get(ServerJob, "prices")
+        if row is None:
+            row = ServerJob(name="prices", next_run=0, lease_until=0)
+            db.add(row)
+        if row.lease_until > now or price_history.recorded(db):
+            db.rollback()
+            return
+        owner = row.owner = str(uuid4())
+        row.lease_until = now + 3600
+        db.commit()
+    try:
+        with SessionLocal() as db:
+            fallback = None
+            if db.scalar(select(PriceSnapshot.id).limit(1)) is None:
+                version, payload = prices.current(db, rules)
+                fallback = (version, payload) if payload else None
+        price_history.backfill(SessionLocal, fallback)
+    finally:
+        with SessionLocal() as db:
+            db.execute(text("BEGIN IMMEDIATE"))
+            row = db.get(ServerJob, "prices")
+            if row.owner == owner:
+                row.lease_until, row.owner = 0, None
+            db.commit()
+
+
 async def loop():
     while True:
+        try:
+            await asyncio.to_thread(backfill_history)
+        except Exception:
+            import logging
+
+            logging.getLogger("ppb.jobs").error("price history backfill unavailable")
         try:
             await asyncio.to_thread(refresh_prices)
         except Exception:

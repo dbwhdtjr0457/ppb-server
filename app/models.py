@@ -147,6 +147,28 @@ class PriceSnapshot(Base):
     created_at: Mapped[datetime] = mapped_column(default=utcnow)
 
 
+class PricePoint(Base):
+    """One printing, card or pack value on the day it changed. Unchanged days are not stored."""
+
+    __tablename__ = "price_points"
+    __table_args__ = {"sqlite_with_rowid": False}
+    kind: Mapped[str] = mapped_column(String(8), primary_key=True)
+    item: Mapped[str] = mapped_column(String(160), primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), primary_key=True, index=True)
+    usd: Mapped[float]
+
+
+class PriceDay(Base):
+    """A recorded snapshot day and the biggest moves since the day before it."""
+
+    __tablename__ = "price_days"
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    snapshot: Mapped[str] = mapped_column(String(64))
+    since: Mapped[str | None] = mapped_column(String(10))
+    moves: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[int]
+
+
 class ServerJob(Base):
     __tablename__ = "server_jobs"
     name: Mapped[str] = mapped_column(String(40), primary_key=True)

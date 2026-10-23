@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import text
 
-from app import inventory, prices, statistics
+from app import inventory, price_history, prices, statistics
 from app.game_api import Database, Identity, get_rules
 from app.game_schemas import CommandRequest
 from app.game_service import read_state
@@ -34,6 +34,47 @@ def price_snapshot(db: Database, who: Identity, rules=Depends(get_rules)):
         media_type="application/json",
         headers={"ETag": version, "Cache-Control": "private, no-cache"},
     )
+
+
+@router.get("/prices/history")
+def price_history_series(
+    db: Database,
+    who: Identity,
+    kind: Literal["printing", "card", "pack"],
+    item: Annotated[str, Query(min_length=1, max_length=160)],
+    days: Annotated[int, Query(ge=0, le=3650)] = 0,
+):
+    """One printing, card or pack over time. `days=0` is everything recorded."""
+    return price_history.history(db, kind, item, days)
+
+
+@router.get("/prices/movers")
+def price_movers(db: Database, who: Identity, rules=Depends(get_rules)):
+    """The latest day's biggest moves, and how the caller's own cards moved that day."""
+    row, moves = price_history.latest_moves(db)
+    if row is None:
+        return {
+            "day": None,
+            "since": None,
+            "changed": 0,
+            "risers": [],
+            "fallers": [],
+            "packs": [],
+            "owned": [],
+        }
+    _, payload = prices.current(db, rules)
+    exact = payload["cardPrices"].get("printingPrices", {}) if payload else {}
+    owned: dict[tuple[str, str], int] = {}
+    # A printing without its own price is valued at its card's price, as in the app.
+    for key, count in inventory.counts(read_state(db, who.account_id)["state"]).items():
+        series = ("printing", key) if key in exact else ("card", key.rsplit("#", 1)[0])
+        owned[series] = owned.get(series, 0) + count
+    return {
+        "day": row.day,
+        "since": row.since,
+        **moves,
+        "owned": price_history.owned_moves(db, row.day, owned),
+    }
 
 
 @router.post("/quotes")
